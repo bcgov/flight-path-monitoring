@@ -1,0 +1,5 @@
+^flight-path-monitoring\.Rproj$
+^\.Rproj\.user$
+^py$
+^data-raw$
+*.html

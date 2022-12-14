@@ -1,0 +1,17 @@
+Package: flight.path.monitoring
+Title: Flight Path Analysis on Ungulate Winter Ranges
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Kindra", "Maricle", email = "kindra.l.maricle@gov.bc.ca", role = "cre"),
+    person("Bruno", "Tremblay", email = "bruno@boostao.ca", role = c("aut"),
+           comment = c(ORCID = "0000-0002-2945-356X")),
+    person("Francois", "Bornais", email = "francois@boostao.ca", role = c("aut")),
+    person("Nicolas", "Gauthier", email = "nicolas@boostao.ca", role = c("aut")),
+    person(family = "Province of British Columbia", role = c("cph", "fnd")))
+Description: Process flight path data to provide stakeholders information
+about time and distance spent in each habitat area. Includes a Shiny application
+to interact with the fonctionalities contained within this package.
+License: Apache License (== 2)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.2

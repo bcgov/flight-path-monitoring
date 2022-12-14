@@ -1,0 +1,14 @@
+for all gps data
+
+compute time intervals between points
+check if interval is consistant if not warning
+keep track of all unique intervals between points
+
+compute total flight time
+create line from points
+
+in data add flight name , flight duration and line geom
+
+create dt for each gpx that have the same intervals
+
+

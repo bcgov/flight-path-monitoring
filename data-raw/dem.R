@@ -4,4 +4,5 @@ library(bcmaps)
 # This will cache the whole cded locally. It's a large download.
 # For development purpose only, we will compress it a later stage
 # for better efficiency.
-dem <- cded(aoi = bc_bbox())
+dem <- cded(aoi = bc_bbox(), check_tiles = FALSE)
+terra::rast(dem) |> terra::cellSize()

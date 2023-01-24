@@ -11,9 +11,11 @@ if (!requireNamespace("remotes")) install.packages("remotes")
 remotes::install_github("dkahle/ggmap")
 remotes::install_github("r-spatial/sf")
 remotes::install_github("bcgov/bcdata")
+remotes::install_github("r-tmap/tmaptools")
 library(sf)
 library(ggmap)
 library(bcdata)
+library(tmaptools)
 ```
 
 ## Flight path monitoring analysis
@@ -26,65 +28,77 @@ The data required for this analysis are:
  - Flightline data
  
 ## Retrieve and visualize habitat areas
-```{r habitat_areas, eval=FALSE, include=TRUE}
+```{r habitat_areas}
 
 # Skeena - Mountaingoat winter habitat 
 tmpdir <- file.path(tempdir(),"zipped")
-unzip("./Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
+unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
 Skeena_mountaingoatwinterhab <- st_read(tmpdir)
 unlink(tmpdir, recursive = TRUE)
 
 # Ungulate Winter Range- Approved
 # bcdc_search("Ungulate Winter Range")
-Ungulate_winterrange_approved <- bcdc_get_data(bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1"))
-Ungulate_winterrange_approved <- Ungulate_winterrange_approved[
-  which(Ungulate_winterrange_approved$SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")),
-]
+Ungulate_winterrange_approved <- bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1") |>
+  bcdc_query_geodata() |>
+  filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+  collect()
 
 # Ungulate Winter Range- Proposed
 # bcdc_search("Ungulate Winter Range")
-Ungulate_winterrange_proposed <- bcdc_get_data(bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2"))
-Ungulate_winterrange_proposed <- Ungulate_winterrange_proposed[
-  which(Ungulate_winterrange_proposed$SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")),
-]
+Ungulate_winterrange_proposed <- bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2") |>
+  bcdc_query_geodata() |>
+  filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+  collect()
 
-# Strategic Land and Resource Plans - All
-# Have to be downloaded manually from iMapBC after selecting appropriate layers.
-# Caribou is in the RMP_PLAN_LEGAL_POLY_SVW layer, all others are in the RMP_PLAN_NON_LEGAL_POLY_SVW
-# layer
-tmpdir <- file.path(tempdir(),"zipped")
-unzip("./Habitat/RMP_PLAN_LEGAL_POLY_SVW.zip", exdir = tmpdir)
-legal_habitat_areas <- st_read(file.path(tmpdir, "RMP_PLAN_LEGAL_POLY_SVW"))
-legal_habitat_areas <- legal_habitat_areas[
-  which(
-    legal_habitat_areas$SLRP_NAME == "Dease-Liard Sustainable Resource Management Plan" &
-    legal_habitat_areas$FEAT_OBJ %in% c("Caribou Winter Habitat Zones")
-  ),
-]
-unlink(tmpdir, recursive = TRUE)
+# Legal Planning Objectives - Current - Polygon
+# bcdc_search("Legal Planning Objectives Polygon")
+legal_habitat_areas <- bcdc_get_record("2c02040c-d7c5-4960-8d04-dea01d6d3e9f") |>
+  bcdc_query_geodata() |>
+  filter(
+    STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan",
+    LEGAL_FEAT_OBJECTIVE == "Caribou Winter Habitat Zones"
+  ) |>
+  collect()
 
-tmpdir <- file.path(tempdir(),"zipped")
-unzip("./Habitat/RMP_PLAN_NON_LEGAL_POLY_SVW.zip", exdir = tmpdir)
-non_legal_habitat_areas <- st_read(file.path(tmpdir, "RMP_PLAN_NON_LEGAL_POLY_SVW"))
-unlink(tmpdir, recursive = TRUE)
-
-non_legal_habitat_areas <- non_legal_habitat_areas[
-  which(
+# Non Legal Planning Features - Current - Polygon
+# bcdc_search("Non Legal Planning Features Polygon")
+non_legal_habitat_areas <- bcdc_get_record("5d859a89-f173-4006-82f9-16254de2c1fc") |>
+  bcdc_query_geodata() |>
+  filter(
     (
-      non_legal_habitat_areas$SLRP_NAME == "Dease-Liard Sustainable Resource Management Plan" &
-      non_legal_habitat_areas$FEAT_OBJ == "High Value Mountain Ungulate Habitat"  
+      STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan" &
+      NON_LEGAL_FEAT_OBJECTIVE == "High Value Mountain Ungulate Habitat"  
     ) |
     (
-      non_legal_habitat_areas$SLRP_NAME == "Lakes District Land and Resource Management Plan" &
-      non_legal_habitat_areas$FEAT_OBJ == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
-      non_legal_habitat_areas$ATRB2_VAL %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
+      STRGC_LAND_RSRCE_PLAN_NAME == "Lakes District Land and Resource Management Plan" &
+      NON_LEGAL_FEAT_OBJECTIVE == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
+      NON_LEGAL_FEAT_ATRB_2_VALUE %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
     ) |
     (
-      non_legal_habitat_areas$SLRP_NAME == "Morice Land and Resource Management Plan" &
-      non_legal_habitat_areas$FEAT_OBJ %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
+      STRGC_LAND_RSRCE_PLAN_NAME == "Morice Land and Resource Management Plan" &
+      NON_LEGAL_FEAT_OBJECTIVE %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
     )
-  ),
-]
+  ) |>
+  collect()
 
 ```
 
+## Telemetry
+```{r wildlife_telemetry}
+
+# bcdc_search("Wildlife Species Inventory Telemetry Observations")
+# Public, nothing after 2015 for Caribou
+# Will use as an example
+wildlife_telemetry <- bcdc_get_record("6d48657f-ab33-43c5-ad40-09bd56140845") |>
+  bcdc_query_geodata() |>
+  filter(SPECIES_CODE %in% c("M-RATA"), OBSERVATION_YEAR >= 2015) |>
+  collect()
+
+```
+
+## Flightlines
+
+``` {r flightlines}
+
+
+```

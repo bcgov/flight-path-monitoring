@@ -12,4 +12,5 @@ skeena_aoi <- nr$geometry[which(nr$ORG_UNIT == "RSK")]
 # This will cache the whole cded locally. It's a large download.
 # For development purpose only, we will compress it a later stage
 # for better efficiency.
-dem <- cded(aoi = sf::st_bbox(skeena_aoi))
+dem <- cded(aoi = sf::st_bbox(skeena_aoi), check_tiles = FALSE)
+terra::rast(dem) |> terra::cellSize()

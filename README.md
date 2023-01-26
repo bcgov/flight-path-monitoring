@@ -22,7 +22,7 @@ The following resources will be provided to the contractor and are available on 
 
 # First draft delivery date
 
-`January 15th, 2023`
+`February 3rd, 2023`
 
 # Final Delivery date
 

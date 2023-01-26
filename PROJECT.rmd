@@ -15,27 +15,16 @@ if (!requireNamespace("bcmaps", quietly = TRUE)) remotes::install_github("bcgov/
 if (!requireNamespace("data.table", quietly = TRUE)) install.packages("data.table")
 if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
 if (!requireNamespace("terra", quietly = TRUE)) remotes::install_github("rspatial/terra")
+if (!requireNamespace("leaflet", quietly = TRUE)) remotes::install_github("rstudio/leaflet")
 
 library(sf)
+library(units)
 library(terra)
 library(bcdata)
 library(bcmaps)
 library(data.table)
 library(lubridate)
-
-append_bbox_info <- function(sf_obj) {
-  stopifnot(inherits(sf_obj, "sf"))
-  # Switch class, store bbox for faster processing later
-  cls_ori <- class(sf_obj)
-  data.table::setDT(sf_obj)
-  data.table::set(
-    sf_obj,
-    j = c("xmin", "ymin", "xmax", "ymax"),
-    value = as.list(data.table::rbindlist(lapply(sf_obj$geometry, function(x) as.list(sf::st_bbox(x)))))
-  )
-  attr(sf_obj, "class") <- cls_ori
-  return(sf_obj)
-}
+library(leaflet)
 
 ```
 
@@ -48,13 +37,27 @@ The data required for this analysis are:
  - Digital elevation model
  - Flightline data
  
-## Retrieve and visualize habitat areas
+## Habitat Areas
 ```{r habitat_areas}
+
+append_bbox_info <- function(sf_obj) {
+  stopifnot(inherits(sf_obj, "sf"))
+  # Switch class, store bbox for faster processing later
+  cls_ori <- class(sf_obj)
+  data.table::setDT(sf_obj)
+  data.table::set(
+    sf_obj,
+    j = c("xmin", "ymin", "xmax", "ymax"),
+    value = as.list(data.table::rbindlist(lapply(sf::st_geometry(sf_obj), function(x) as.list(sf::st_bbox(x)))))
+  )
+  attr(sf_obj, "class") <- cls_ori
+  return(sf_obj)
+}
 
 # Skeena - Mountaingoat winter habitat 
 tmpdir <- file.path(tempdir(),"zipped")
 unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
-Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir)
+Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir, drivers = "ESRI Shapefile", quiet = TRUE)
 Skeena_mountaingoatwinterhab[["id"]] <- paste(
   "Skeena-mountaingoatwinterhab",
   Skeena_mountaingoatwinterhab[["OBJECTID"]],
@@ -153,51 +156,179 @@ wildlife_telemetry <- wildlife_telemetry[,c("id", "timestamp")] |>
 
 ```
 
-## Flightlines
+## Digital Elevation Model
+```{r dem}
 
-```{r flightlines}
-
-# Will deal with kml format later, might need to write a custom driver
-
-# Assuming the gpx format stays the same, not sure this is the case if you switch GPS model
-# The goal is to get a unique ID, elevation, time and coordinates (x,y,z,t + ID)
-gpx_process <- function(path, quiet = TRUE) {
-  fp <- sf::st_read(path, layer = "track_points", quiet = quiet)
-  fp$track_seg_point_id <- basename(path) |>
-    paste(fp$track_seg_point_id, sep = ".")
-  return(fp[,c("track_seg_point_id", "ele", "time")] |> data.table::setDT())
+dem_extract <- function(pts, method = c("simple", "bilinear"), ...) {
+  method <- match.arg(method)
+  dem <- 
+    sf::st_bbox(pts) |> # simplify geometry to retrieve required dem
+    sf::st_as_sfc() |> # recast to sfc to allow buffer around
+    sf::st_buffer(units::set_units(50, m), nQuadSegs = 1) |> # add a margin to allow bilinear
+    sf::st_bbox() |> # recompute bounding box before querying dem
+    bcmaps::cded(aoi = _, ...) |> # obtain tiles
+    terra::rast() # cast as raster
+  terra::extract(
+    x = dem, 
+    y = sf::st_transform(pts, crs = sf::st_crs(dem)) |> terra::vect(),
+    method = method,
+    ID = FALSE
+  )[,1]
 }
-
-flight_points <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
-  parallel::mclapply(gpx_process, mc.cores = parallel::detectCores()) |>
-  data.table::rbindlist()
 
 ```
 
-## Digital elevation model
+## Flights
 
-```{r dem}
+```{r flightlines}
 
-dem <- bcmaps::cded(aoi = bcmaps::bc_bbox(), check_tiles = FALSE) |>
-  terra::rast()
+#TODO: Still unsure if we will need a different method depending on format, maybe not
+setClass("flightGPX", contains = c("list"))
+setClass("flightKML", contains = c("list"))
+#TODO: Will deal with kml format later, might need to write a custom driver
 
-system.time({
-  flight_points$ground_ele <- terra::extract(
-  x = dem,
-  y = flight_points$geometry|> terra::vect(),
-  method = "bilinear",
-  ID = FALSE
-)[,1]
-})
+# Assuming the gpx format stays the same, will use track_points
+read_GPX <- function(file) {
+  layers_data <- sf::st_layers(file)
+  non_empty <- layers_data[["name"]][which(layers_data[["features"]] > 0)] |>
+    setNames(nm = _)
+    lapply(non_empty, sf::st_read, dsn = file, quiet = TRUE) |> 
+      `class<-`("flightGPX")
+}
 
-system.time({
-flight_points$ground_ele2 <- terra::extract(
-  x = dem,
-  y = flight_points$geometry|> terra::vect(),
-  method = "simple",
-  ID = FALSE
-)[,1]  
-})
+flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
+  sample(32) |> # sample for now, can do full later
+  parallel::mclapply(read_GPX, mc.cores = parallel::detectCores()) # go parallel for faster process
 
+# Process flight by flight? Probably
 
+#TODO: Investigate
+# GPS Elevation not reliable unless you can fly below mountains?
+f <- read_GPX("./data-raw/Heli data/NEH/2021/20220317-145549-0032969-139533.gpx")
+pts <- f$track_points[3673:3713,] |> sf::st_geometry()
+gps_ele <- f$track_points[3673:3713,]$ele
+real_ele <- dem_extract(pts, method = "bilinear", check_tiles = FALSE)
+leaflet::leaflet(pts) |> 
+  leaflet::addProviderTiles("OpenTopoMap") |> 
+  leaflet::addMarkers(
+    label = sprintf(
+      "<p>GPS Elevation: %s<br>DEM Elevation: %s</p>",
+      gps_ele,
+      round(real_ele, 2)
+    ) |> lapply(FUN = htmltools::HTML)
+  )
+
+```
+
+## Incursion Zones
+```{r incursion_zones}
+incursion_zones_distance <- list(
+  "0-500 m incursion zone" = units::set_units(c("from" = 0L , "to" = 500L), m),
+  "500-1000m incursion zone" = units::set_units(c("from" = 500L, "to" = 1000L), m),
+  "1000-1500m incursion zone" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
+)
+```
+
+## Interface
+```{r interface}
+
+#TODO: methods shenanigan dispatching for flightGPX and flightKML?
+# flight_analysis <- function(flights, zones, areas) {
+#   lapply(flights, flight_process, zones = zones, areas = areas)
+# }
+# 
+# flight_process <- function(flight, zones, areas) {
+#   UseMethod("flight_process", )
+# }
+
+filter_on_bbox <- function(aoi, sf_obj) {
+  sf_obj[
+    which(
+      .subset2(aoi, "xmin") < .subset2(sf_obj, "xmax") &
+      .subset2(aoi, "xmax") > .subset2(sf_obj, "xmin") &
+      .subset2(aoi, "ymin") < .subset2(sf_obj, "ymax") &
+      .subset2(aoi, "ymax") > .subset2(sf_obj, "ymin")
+    ),
+  ]
+}
+
+compute_donut <- function(dist, sf_obj) {
+  
+  bake_donut <- function(d) {
+      
+    if (d["from"] != units::set_units(0, m)) {
+      from <- sf_obj |> sf::st_geometry() |> sf::st_buffer(d["from"])
+    } else {
+      from <- sf_obj |> sf::st_geometry()
+    }
+    
+    if (d["to"] != units::set_units(0, m)) {
+      to <- sf_obj |> sf::st_geometry() |> sf::st_buffer(d["to"])
+    } else {
+      to <- sf_obj |> sf::st_geometry()
+    }
+    
+    if (d["from"] < d["to"]) {
+      sf::st_difference(to, from |> sf::st_union())
+    } else {
+      sf::st_difference(from, to |> sf::st_union())
+    }
+      
+  }
+  
+  if (nrow(sf_obj)) { 
+    return(lapply(dist, bake_donut))
+  }
+  
+  return(invisible())
+}
+
+# Process one flight
+flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
+  
+  # Area of interest
+  aoi <- sf::st_bbox(flight[["tracks"]]) |>
+    sf::st_as_sfc() |>
+    sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
+    sf::st_transform(sf::st_crs(zones)) |>
+    sf::st_bbox()
+  
+  # Zones of interest
+  zoi <- filter_on_bbox(aoi, zones)
+  
+  # Telemetry of interest
+  #TODO: Consider data time for telemetry
+  toi <- filter_on_bbox(aoi, telemetry)
+
+  # Incursion
+  incursions_zoi <- compute_donut(dist, zoi)
+  incursions_toi <- compute_donut(dist, toi)
+  
+  # Do viewshed
+}
+
+# system.time({test <- sf::st_crop(zones, aoi)})
+# system.time({
+#   test2 <- zones[
+#     which(
+#       .subset2(aoi, "xmin") < .subset2(zones, "xmax") &
+#       .subset2(aoi, "xmax") > .subset2(zones, "xmin") &
+#       .subset2(aoi, "ymin") < .subset2(zones, "ymax") &
+#       .subset2(aoi, "ymax") > .subset2(zones, "ymin")),
+#   ]
+# })
+# ggplot2::ggplot() + ggplot2::geom_sf(data = test) + ggplot2::geom_sf(data = flight$tracks)
+# ggplot2::ggplot() + ggplot2::geom_sf(data = test2) + ggplot2::geom_sf(data = flight$tracks)
+# 
+ggplot() +
+  geom_sf(data = incursions_zoi[[3]], fill = "beige") +
+  geom_sf(data = incursions_zoi[[2]], fill = "yellow") +
+  geom_sf(data = incursions_zoi[[1]], fill = "orange") +
+  geom_sf(data = zoi, fill = "red") +
+  geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "blue")
+
+```
+
+## Time in Incursion Zones
+```{r timeinzones}
 ```

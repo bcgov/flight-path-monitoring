@@ -1,3 +1,5 @@
+![Lifecycle:Experimental](https://img.shields.io/badge/Lifecycle-Experimental-339999)
+
 # Flight Path Monitoring Application
 
 This is an opportunity to work with the Skeena Ecosystems team within the Ministry of Lands, Water, and Resource Stewardship. We are looking for a Python and R programmer to translate and optimize Python scrips to take Flightline data submitted by tenure holders and overlay it over legal habitat areas to determine the time and distance spent in each habitat area. The python code and flight data will be provided to the contractor, input habitat databases are available on the BC Data Catalogue.

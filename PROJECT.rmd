@@ -183,8 +183,8 @@ dem_extract <- function(pts, method = c("simple", "bilinear"), ...) {
 ```{r flightlines}
 
 #TODO: Still unsure if we will need a different method depending on format, maybe not
-setClass("flightGPX", contains = c("list"))
-setClass("flightKML", contains = c("list"))
+#setClass("flightGPX", contains = c("list"))
+#setClass("flightKML", contains = c("list"))
 #TODO: Will deal with kml format later, might need to write a custom driver
 
 # Assuming the gpx format stays the same, will use track_points
@@ -192,11 +192,12 @@ read_GPX <- function(file) {
   layers_data <- sf::st_layers(file)
   non_empty <- layers_data[["name"]][which(layers_data[["features"]] > 0)] |>
     setNames(nm = _)
-    lapply(non_empty, sf::st_read, dsn = file, quiet = TRUE) |> 
-      `class<-`("flightGPX")
+    lapply(non_empty, sf::st_read, dsn = file, quiet = TRUE)# |> 
+      #`class<-`("flightGPX")
 }
 
 flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
+  setNames(nm = _) |>
   sample(32) |> # sample for now, can do full later
   parallel::mclapply(read_GPX, mc.cores = parallel::detectCores()) # go parallel for faster process
 
@@ -204,19 +205,19 @@ flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
 
 #TODO: Investigate
 # GPS Elevation not reliable unless you can fly below mountains?
-f <- read_GPX("./data-raw/Heli data/NEH/2021/20220317-145549-0032969-139533.gpx")
-pts <- f$track_points[3673:3713,] |> sf::st_geometry()
-gps_ele <- f$track_points[3673:3713,]$ele
-real_ele <- dem_extract(pts, method = "bilinear", check_tiles = FALSE)
-leaflet::leaflet(pts) |> 
-  leaflet::addProviderTiles("OpenTopoMap") |> 
-  leaflet::addMarkers(
-    label = sprintf(
-      "<p>GPS Elevation: %s<br>DEM Elevation: %s</p>",
-      gps_ele,
-      round(real_ele, 2)
-    ) |> lapply(FUN = htmltools::HTML)
-  )
+# f <- read_GPX("./data-raw/Heli data/NEH/2021/20220317-145549-0032969-139533.gpx")
+# pts <- f$track_points[3673:3713,] |> sf::st_geometry()
+# gps_ele <- f$track_points[3673:3713,]$ele
+# real_ele <- dem_extract(pts, method = "bilinear", check_tiles = FALSE)
+# leaflet::leaflet(pts) |> 
+#   leaflet::addProviderTiles("OpenTopoMap") |> 
+#   leaflet::addMarkers(
+#     label = sprintf(
+#       "<p>GPS Elevation: %s<br>DEM Elevation: %s</p>",
+#       gps_ele,
+#       round(real_ele, 2)
+#     ) |> lapply(FUN = htmltools::HTML)
+#   )
 
 ```
 
@@ -254,26 +255,24 @@ filter_on_bbox <- function(aoi, sf_obj) {
 
 compute_donut <- function(dist, sf_obj) {
   
+  buff_oven <- function() {
+    precomputed_dist <- list(
+      "0" = sf_obj |> sf::st_geometry() |> sf::st_union()
+    )
+    function(d) {
+      d_char <- as.character(d)
+      if (is.null(res <- precomputed_dist[[d_char]])) {
+        precomputed_dist[[d_char]] <<- res <- 
+          sf::st_geometry(sf_obj) |> sf::st_buffer(d) |> sf::st_union()
+      }
+      return(res)
+    }
+  }
+  
   bake_donut <- function(d) {
-      
-    if (d["from"] != units::set_units(0, m)) {
-      from <- sf_obj |> sf::st_geometry() |> sf::st_buffer(d["from"])
-    } else {
-      from <- sf_obj |> sf::st_geometry()
-    }
-    
-    if (d["to"] != units::set_units(0, m)) {
-      to <- sf_obj |> sf::st_geometry() |> sf::st_buffer(d["to"])
-    } else {
-      to <- sf_obj |> sf::st_geometry()
-    }
-    
-    if (d["from"] < d["to"]) {
-      sf::st_difference(to, from |> sf::st_union())
-    } else {
-      sf::st_difference(from, to |> sf::st_union())
-    }
-      
+    d <- sort(d)
+    buffers <- buff_oven()
+    sf::st_difference(buffers(d[2]), buffers(d[1]))
   }
   
   if (nrow(sf_obj)) { 
@@ -297,14 +296,22 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
   zoi <- filter_on_bbox(aoi, zones)
   
   # Telemetry of interest
-  #TODO: Consider data time for telemetry
+  #TODO: Consider data time for telemetry?
   toi <- filter_on_bbox(aoi, telemetry)
 
   # Incursion
   incursions_zoi <- compute_donut(dist, zoi)
   incursions_toi <- compute_donut(dist, toi)
   
+  # Digital elevation model
+  dem <- bcmaps::cded(aoi, check_tiles = FALSE) |>
+    terra::rast()
+  
   # Do viewshed
+  terra::viewshed()
+  
+  # Flight timeinterval
+  
 }
 
 # system.time({test <- sf::st_crop(zones, aoi)})
@@ -320,6 +327,7 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
 # ggplot2::ggplot() + ggplot2::geom_sf(data = test) + ggplot2::geom_sf(data = flight$tracks)
 # ggplot2::ggplot() + ggplot2::geom_sf(data = test2) + ggplot2::geom_sf(data = flight$tracks)
 # 
+flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")
 ggplot() +
   geom_sf(data = incursions_zoi[[3]], fill = "beige") +
   geom_sf(data = incursions_zoi[[2]], fill = "yellow") +

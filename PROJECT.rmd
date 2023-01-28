@@ -43,12 +43,13 @@ The data required for this analysis are:
 append_bbox_info <- function(sf_obj) {
   stopifnot(inherits(sf_obj, "sf"))
   # Switch class, store bbox for faster processing later
+  geom <- sf::st_geometry(sf_obj)
   cls_ori <- class(sf_obj)
   data.table::setDT(sf_obj)
   data.table::set(
     sf_obj,
     j = c("xmin", "ymin", "xmax", "ymax"),
-    value = as.list(data.table::rbindlist(lapply(sf::st_geometry(sf_obj), function(x) as.list(sf::st_bbox(x)))))
+    value = as.list(data.table::rbindlist(lapply(geom, function(x) as.list(sf::st_bbox(x)))))
   )
   attr(sf_obj, "class") <- cls_ori
   return(sf_obj)
@@ -198,7 +199,7 @@ read_GPX <- function(file) {
 
 flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
   setNames(nm = _) |>
-  sample(32) |> # sample for now, can do full later
+  sample(1) |> # sample for now, can do full later
   parallel::mclapply(read_GPX, mc.cores = parallel::detectCores()) # go parallel for faster process
 
 # Process flight by flight? Probably
@@ -283,7 +284,7 @@ compute_donut <- function(dist, sf_obj) {
 }
 
 # Process one flight
-flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
+flight_process.flightGPX <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m)) {
   
   # Area of interest
   aoi <- sf::st_bbox(flight[["tracks"]]) |>
@@ -307,10 +308,33 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
   dem <- bcmaps::cded(aoi, check_tiles = FALSE) |>
     terra::rast()
   
+  # Transfrom flight points to linestring
+  
+  ground_level <- terra::extract(
+    x = dem, 
+    y = flight[["track_points"]] |> sf::st_geometry() |> sf::st_transform(crs = sf::st_crs(dem)) |> terra::vect(),
+    method = "bilinear",
+    ID = FALSE
+  )[,1]
+  
+  # This is where we might want to do some smoothing is flight ele is bad
+  above_ground_level <- pmax(flight[["track_points"]][["ele"]] - ground_level, 0)
+  
+  # Compute time deltas
+  time_deltas <- difftime(
+    flight[["track_points"]][["time"]][-1],
+    flight[["track_points"]][["time"]][-nrow(flight[["track_points"]])],
+    units = "secs"
+  )
+  
+  ?sf::st_linestring
+  flight[["track_points"]] |> sf::st_geometry() |> sf::st_coordinates() |> sf::st_linestring(dim = "XY") |> sf::st_as_sfc()
+  # Cut above a differential elevation of 500m
+  # Compute length of segment in incursion zones vs original length
+  # Multiply by time delta
+  
   # Do viewshed
   terra::viewshed()
-  
-  # Flight timeinterval
   
 }
 
@@ -327,7 +351,13 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist) {
 # ggplot2::ggplot() + ggplot2::geom_sf(data = test) + ggplot2::geom_sf(data = flight$tracks)
 # ggplot2::ggplot() + ggplot2::geom_sf(data = test2) + ggplot2::geom_sf(data = flight$tracks)
 # 
+# Run from the function above
 flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")
+zones <- habitat_areas
+telemetry <- wildlife_telemetry
+dist <- incursion_zones_distance
+
+
 ggplot() +
   geom_sf(data = incursions_zoi[[3]], fill = "beige") +
   geom_sf(data = incursions_zoi[[2]], fill = "yellow") +

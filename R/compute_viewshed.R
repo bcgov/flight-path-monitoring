@@ -25,5 +25,7 @@ compute_viewshed <- function(dem, loc){
   all_vs <- lapply(vs, values) |> as.data.frame() |> rowSums(na.rm=FALSE)|> as.logical()
 
   values(dem2) <- all_vs
+
+  dem2
 }
 

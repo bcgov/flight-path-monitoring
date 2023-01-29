@@ -200,7 +200,7 @@ read_GPX <- function(file) {
 flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
   setNames(nm = _) |>
   sample(1) |> # sample for now, can do full later
-  parallel::mclapply(read_GPX, mc.cores = parallel::detectCores()) # go parallel for faster process
+  parallel::mclapply(read_GPX, mc.cores = ifelse(isTRUE(Sys.info()[["sysname"]]=="Windows"), 1L, parallel::detectCores())) # go parallel for faster process
 
 # Process flight by flight? Probably
 

@@ -225,9 +225,9 @@ flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
 ## Incursion Zones
 ```{r incursion_zones}
 incursion_zones_distance <- list(
-  "0-500 m incursion zone" = units::set_units(c("from" = 0L , "to" = 500L), m),
-  "500-1000m incursion zone" = units::set_units(c("from" = 500L, "to" = 1000L), m),
-  "1000-1500m incursion zone" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
+  "High" = units::set_units(c("from" = 0L , "to" = 500L), m),
+  "Moderate" = units::set_units(c("from" = 500L, "to" = 1000L), m),
+  "Low" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
 )
 ```
 
@@ -254,6 +254,7 @@ filter_on_bbox <- function(aoi, sf_obj) {
   ]
 }
 
+# TODO: Document fonction
 compute_donut <- function(dist, sf_obj) {
   
   buff_oven <- function() {
@@ -270,24 +271,90 @@ compute_donut <- function(dist, sf_obj) {
     }
   }
   
+  buffers <- buff_oven()
+  
   bake_donut <- function(d) {
     d <- sort(d)
-    buffers <- buff_oven()
     sf::st_difference(buffers(d[2]), buffers(d[1]))
   }
   
   if (nrow(sf_obj)) { 
-    return(lapply(dist, bake_donut))
+    return(
+      c(
+        list("In UWR" = buffers("0")),
+        lapply(dist, bake_donut),
+        list("All" = buffers(do.call(max, dist) |> as.character()))
+      )
+    )
   }
   
   return(invisible())
 }
 
+empty_results <- function(flight, dist) {
+  zero <- function(...) as.difftime(0, units = "secs")
+  do.call(
+    data.table::data.table,
+    args = c(
+      list(
+        "Flight" = flight[["tracks"]][["name"]],
+        "In UWR" = zero()
+      ),
+      lapply(dist, zero),
+      list(
+        "All" = zero()
+      )
+    )
+  )
+}
+
+# TODO : Uncompleted,  apply mean to kept fields
+combine_contiguous_duplicates <- function(tp, keep) {
+  if (!nrow(tp)) {
+    return(tp[,c(keep)])
+  }
+  drop <- logical(nrow(tp))
+  coords <- tp |> sf::st_coordinates()
+  i <- 1
+  j <- 1
+  while (i < nrow(tp)) {
+    if (all(coords[i,] == coords[i+1,])) {
+      if (length(coords[i-1]) & all(coords[]))
+      j <- i
+    } else {
+      if (j != i) {
+        
+      }
+      j <- i + 1
+    }
+    i <- i + 1
+  }
+}
+
+# not same
+# not same
+# same first
+# same second
+# same third
+# not same
+# not same
+
+
+
 # Process one flight
-flight_process.flightGPX <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m)) {
+flight_process <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m)) {
+  
+  # Flight track points (contiguous duplicates combined)
+  ftp <- flight[["track_points"]] |> combine_contiguous_duplicates(keep = c("ele", "time"))
+  
+  # Track points geom
+  geom <- ftp |> sf::st_geometry()
+  
+  # Combine contiguous points with the same geometry
   
   # Area of interest
-  aoi <- sf::st_bbox(flight[["tracks"]]) |>
+  aoi <- geom |>
+    sf::st_bbox() |>
     sf::st_as_sfc() |>
     sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
     sf::st_transform(sf::st_crs(zones)) |>
@@ -298,39 +365,75 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist, max.altitud
   
   # Telemetry of interest
   #TODO: Consider data time for telemetry?
-  toi <- filter_on_bbox(aoi, telemetry)
+  # toi <- filter_on_bbox(aoi, telemetry)
+  
+  if (nrow(zoi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
   # Incursion
   incursions_zoi <- compute_donut(dist, zoi)
-  incursions_toi <- compute_donut(dist, toi)
+  # incursions_toi <- compute_donut(dist, toi)
+  
+  # Points of interest
+  # Points that intersect with the largest zone + the points before and after to create
+  # the LINESTRING at the zone entry
+  poi <- geom |>
+    sf::st_transform(crs = sf::st_crs(incursions_zoi[["All"]])) |>
+    sf::st_intersects(incursions_zoi[["All"]], sparse = FALSE) |>
+    # Extract index, add neighbor points, pmin/pmax to stay within valid points
+    which() |> {\(x) c(pmax(0,x-1),x,pmin(x+1,length(geom)))}() |>
+    # Remove duplicates, sort indexes, subset track points
+    unique() |> sort() |> {\(x) ftp[x,]}()
+  
+  if (nrow(poi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
   
   # Digital elevation model
-  dem <- bcmaps::cded(aoi, check_tiles = FALSE) |>
-    terra::rast()
+  dem <- bcmaps::cded(aoi, check_tiles = FALSE) |> terra::rast()
   
-  # Transfrom flight points to linestring
+  # Get ground level of points of interest
+  poi[["ground_ele"]] <- 
+    terra::extract(
+      x = dem, 
+      y = poi |>
+        sf::st_geometry() |>
+        sf::st_transform(crs = sf::st_crs(dem)) |>
+        terra::vect(),
+      method = "bilinear",
+      ID = FALSE
+    )[,1]
   
-  ground_level <- terra::extract(
-    x = dem, 
-    y = flight[["track_points"]] |> sf::st_geometry() |> sf::st_transform(crs = sf::st_crs(dem)) |> terra::vect(),
-    method = "bilinear",
-    ID = FALSE
-  )[,1]
+  # Above ground level (sometimes source elevation is wrong)
+  # This is where we might want to do some smoothing if flight ele is bad
+  # Currently do same as python, limit to 0L
+  poi[["agl"]] <- pmax(poi[["ele"]] - poi[["ground_ele"]], 0) |> units::set_units(m)
   
-  # This is where we might want to do some smoothing is flight ele is bad
-  above_ground_level <- pmax(flight[["track_points"]][["ele"]] - ground_level, 0)
+  # Transform points of interest to LINESTRING of interest
+  loi <- sf::st_union(
+    sf::st_geometry(poi)[-1],
+    sf::st_geometry(poi)[-nrow(poi)],
+    by_feature = TRUE
+  ) |> sf::st_cast("LINESTRING") |> sf::st_as_sf()
   
-  # Compute time deltas
-  time_deltas <- difftime(
-    flight[["track_points"]][["time"]][-1],
-    flight[["track_points"]][["time"]][-nrow(flight[["track_points"]])],
+  # Won't be using 3D distance as length calculation are for relative
+  # ratio only, 3D would not have a large enought impact on hypothesis
+  
+  # Add line of interest metadata, above ground levels, time deltas
+  loi[["agl_start"]] <- poi[["agl"]][-1]
+  loi[["agl_end"]] <- poi[["agl"]][-nrow(poi)]
+  loi[["time_deltas"]] <- difftime(
+    poi[["time"]][-1], 
+    poi[["time"]][-nrow(poi)],
     units = "secs"
   )
   
-  ?sf::st_linestring
-  flight[["track_points"]] |> sf::st_geometry() |> sf::st_coordinates() |> sf::st_linestring(dim = "XY") |> sf::st_as_sfc()
-  # Cut above a differential elevation of 500m
-  # Compute length of segment in incursion zones vs original length
+  # Drop line of interest above max.altitude threshold
+  loi <- loi[which(loi[["agl_start"]] < max.altitude & loi[["agl_end"]] < max.altitude),]
+  if (nrow(loi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
+  
+  # Compute original length of linestring before apply incursion zones / viewshed masks
+  loi[["unmasked_length"]] <- sf::st_length(loi |> sf::st_geometry())
+  
+  # lots of zero length, combine contiguous before processing further
+  
   # Multiply by time delta
   
   # Do viewshed
@@ -357,7 +460,7 @@ zones <- habitat_areas
 telemetry <- wildlife_telemetry
 dist <- incursion_zones_distance
 
-
+library(ggplot2)
 ggplot() +
   geom_sf(data = incursions_zoi[[3]], fill = "beige") +
   geom_sf(data = incursions_zoi[[2]], fill = "yellow") +
@@ -367,6 +470,3 @@ ggplot() +
 
 ```
 
-## Time in Incursion Zones
-```{r timeinzones}
-```

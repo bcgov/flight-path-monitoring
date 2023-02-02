@@ -26,20 +26,6 @@ library(data.table)
 library(lubridate)
 library(leaflet)
 
-```
-
-## Flight path monitoring analysis
-
-This document will explain the data manipulation required to conduct flight path analysis of time spent in wild life habitat areas.
-
-The data required for this analysis are:
- - Legal habitat areas
- - Digital elevation model
- - Flightline data
- 
-## Habitat Areas
-```{r habitat_areas}
-
 append_bbox_info <- function(sf_obj) {
   stopifnot(inherits(sf_obj, "sf"))
   # Switch class, store bbox for faster processing later
@@ -55,127 +41,160 @@ append_bbox_info <- function(sf_obj) {
   return(sf_obj)
 }
 
-# Skeena - Mountaingoat winter habitat 
-tmpdir <- file.path(tempdir(),"zipped")
-unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
-Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir, drivers = "ESRI Shapefile", quiet = TRUE)
-Skeena_mountaingoatwinterhab[["id"]] <- paste(
-  "Skeena-mountaingoatwinterhab",
-  Skeena_mountaingoatwinterhab[["OBJECTID"]],
-  sep = "."
-)
-# move id in first position, purely aesthetic
-n <- ncol(Skeena_mountaingoatwinterhab)
-Skeena_mountaingoatwinterhab <- Skeena_mountaingoatwinterhab[, c(n, 1L:(n-1L))]
-unlink(tmpdir, recursive = TRUE)
+```
 
-# Ungulate Winter Range- Approved
-# bcdc_search("Ungulate Winter Range")
-Ungulate_winterrange_approved <- bcdata::bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1") |>
-  bcdata::bcdc_query_geodata() |>
-  bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
-  bcdata::collect()
+## Flight path monitoring analysis
 
-# Ungulate Winter Range- Proposed
-# bcdc_search("Ungulate Winter Range")
-Ungulate_winterrange_proposed <- bcdata::bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2") |>
-  bcdata::bcdc_query_geodata() |>
-  bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
-  bcdata::collect()
+This document will explain the data manipulation required to conduct flight path analysis of time spent in wild life habitat areas.
 
-# Legal Planning Objectives - Current - Polygon
-# bcdc_search("Legal Planning Objectives Polygon")
-legal_habitat_areas <- bcdata::bcdc_get_record("2c02040c-d7c5-4960-8d04-dea01d6d3e9f") |>
-  bcdata::bcdc_query_geodata() |>
-  bcdata::filter(
-    STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan",
-    LEGAL_FEAT_OBJECTIVE == "Caribou Winter Habitat Zones"
-  ) |>
-  bcdata::collect()
+The data required for this analysis are:
+ - Legal habitat areas
+ - Digital elevation model
+ - Flightline data
+ 
+## Habitat Areas
+```{r habitat_areas}
 
-# Non Legal Planning Features - Current - Polygon
-# bcdc_search("Non Legal Planning Features Polygon")
-non_legal_habitat_areas <- bcdata::bcdc_get_record("5d859a89-f173-4006-82f9-16254de2c1fc") |>
-  bcdata::bcdc_query_geodata() |>
-  bcdata::filter(
-    (
-      STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan" &
-      NON_LEGAL_FEAT_OBJECTIVE == "High Value Mountain Ungulate Habitat"  
-    ) |
-    (
-      STRGC_LAND_RSRCE_PLAN_NAME == "Lakes District Land and Resource Management Plan" &
-      NON_LEGAL_FEAT_OBJECTIVE == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
-      NON_LEGAL_FEAT_ATRB_2_VALUE %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
-    ) |
-    (
-      STRGC_LAND_RSRCE_PLAN_NAME == "Morice Land and Resource Management Plan" &
-      NON_LEGAL_FEAT_OBJECTIVE %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
-    )
-  ) |>
-  bcdata::collect()
+presaved <- "./data-raw/Habitat/habitat_areas.rds"
 
-habitat_areas <- rbind(
- Skeena_mountaingoatwinterhab[,"id"],
- Ungulate_winterrange_approved[,"id"],
- Ungulate_winterrange_proposed[,"id"],
- legal_habitat_areas[,"id"],
- non_legal_habitat_areas[,"id"]
-) |> append_bbox_info()
+if (!file.exists(presaved)) {
+  
+  # Skeena - Mountaingoat winter habitat 
+  tmpdir <- file.path(tempdir(),"zipped")
+  unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
+  Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir, drivers = "ESRI Shapefile", quiet = TRUE)
+  Skeena_mountaingoatwinterhab[["id"]] <- paste(
+    "Skeena-mountaingoatwinterhab",
+    Skeena_mountaingoatwinterhab[["OBJECTID"]],
+    sep = "."
+  )
+  # move id in first position, purely aesthetic
+  n <- ncol(Skeena_mountaingoatwinterhab)
+  Skeena_mountaingoatwinterhab <- Skeena_mountaingoatwinterhab[, c(n, 1L:(n-1L))]
+  unlink(tmpdir, recursive = TRUE)
+  
+  # Ungulate Winter Range- Approved
+  # bcdc_search("Ungulate Winter Range")
+  Ungulate_winterrange_approved <- bcdata::bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+    bcdata::collect()
+  
+  # Ungulate Winter Range- Proposed
+  # bcdc_search("Ungulate Winter Range")
+  Ungulate_winterrange_proposed <- bcdata::bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+    bcdata::collect()
+  
+  # Legal Planning Objectives - Current - Polygon
+  # bcdc_search("Legal Planning Objectives Polygon")
+  legal_habitat_areas <- bcdata::bcdc_get_record("2c02040c-d7c5-4960-8d04-dea01d6d3e9f") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(
+      STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan",
+      LEGAL_FEAT_OBJECTIVE == "Caribou Winter Habitat Zones"
+    ) |>
+    bcdata::collect()
+  
+  # Non Legal Planning Features - Current - Polygon
+  # bcdc_search("Non Legal Planning Features Polygon")
+  non_legal_habitat_areas <- bcdata::bcdc_get_record("5d859a89-f173-4006-82f9-16254de2c1fc") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE == "High Value Mountain Ungulate Habitat"  
+      ) |
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Lakes District Land and Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
+        NON_LEGAL_FEAT_ATRB_2_VALUE %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
+      ) |
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Morice Land and Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
+      )
+    ) |>
+    bcdata::collect()
+  
+  habitat_areas <- rbind(
+   Skeena_mountaingoatwinterhab[,"id"],
+   Ungulate_winterrange_approved[,"id"],
+   Ungulate_winterrange_proposed[,"id"],
+   legal_habitat_areas[,"id"],
+   non_legal_habitat_areas[,"id"]
+  ) |> append_bbox_info()
+  
+  rm(
+   Skeena_mountaingoatwinterhab,
+   Ungulate_winterrange_approved,
+   Ungulate_winterrange_proposed,
+   legal_habitat_areas,
+   non_legal_habitat_areas
+  )
+  saveRDS(habitat_areas, presaved)
 
-# rm(
-#  Skeena_mountaingoatwinterhab,
-#  Ungulate_winterrange_approved,
-#  Ungulate_winterrange_proposed,
-#  legal_habitat_areas,
-#  non_legal_habitat_areas
-# )
-# saveRDS(habitat_areas, "./data-raw/Habitat/habitat_areas.rds")
-# habitat_areas <- readRDS("./data-raw/Habitat/habitat_areas.rds")
+} else {
+  
+  habitat_areas <- readRDS(presaved)
+  
+}
 
 ```
 
 ## Telemetry
 ```{r wildlife_telemetry}
 
-# bcdc_search("Wildlife Species Inventory Telemetry Observations")
-# Public, nothing after 2015 for Caribou
-# Will use as an example
-wildlife_telemetry <- bcdata::bcdc_get_record("6d48657f-ab33-43c5-ad40-09bd56140845") |>
-  bcdata::bcdc_query_geodata() |>
-  bcdata::filter(SPECIES_CODE %in% c("M-RATA"), OBSERVATION_YEAR >= 2015) |>
-  bcdata::collect()
+presaved <- "./data-raw/Habitat/wildlife_telemetry.rds"
 
-wildlife_telemetry[["timestamp"]] <- wildlife_telemetry$OBSERVATION_DATE +
-  lubridate::hours(wildlife_telemetry$OBSERVATION_HOUR) +
-  lubridate::minutes(wildlife_telemetry$OBSERVATION_MINUTE)
-
-wildlife_telemetry <- wildlife_telemetry[,c("id", "timestamp")] |>
-  append_bbox_info()
-
-# saveRDS(wildlife_telemetry, "./data-raw/Habitat/wildlife_telemetry.rds")
-# wildlife_telemetry <- readRDS("./data-raw/Habitat/wildlife_telemetry.rds")
+if (!file.exists(presaved)) {
+  
+  # bcdc_search("Wildlife Species Inventory Telemetry Observations")
+  # Public, nothing after 2015 for Caribou
+  # Will use as an example
+  wildlife_telemetry <- bcdata::bcdc_get_record("6d48657f-ab33-43c5-ad40-09bd56140845") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_CODE %in% c("M-RATA"), OBSERVATION_YEAR >= 2015) |>
+    bcdata::collect()
+  
+  wildlife_telemetry[["timestamp"]] <- wildlife_telemetry$OBSERVATION_DATE +
+    lubridate::hours(wildlife_telemetry$OBSERVATION_HOUR) +
+    lubridate::minutes(wildlife_telemetry$OBSERVATION_MINUTE)
+  
+  wildlife_telemetry <- wildlife_telemetry[,c("id", "timestamp")] |>
+    append_bbox_info()
+  
+  saveRDS(wildlife_telemetry, presaved)  
+  
+} else {
+  
+  wildlife_telemetry <- readRDS(presaved)
+  
+}
 
 ```
 
 ## Digital Elevation Model
 ```{r dem}
 
-dem_extract <- function(pts, method = c("simple", "bilinear"), ...) {
-  method <- match.arg(method)
-  dem <- 
-    sf::st_bbox(pts) |> # simplify geometry to retrieve required dem
-    sf::st_as_sfc() |> # recast to sfc to allow buffer around
-    sf::st_buffer(units::set_units(50, m), nQuadSegs = 1) |> # add a margin to allow bilinear
-    sf::st_bbox() |> # recompute bounding box before querying dem
-    bcmaps::cded(aoi = _, ...) |> # obtain tiles
-    terra::rast() # cast as raster
-  terra::extract(
-    x = dem, 
-    y = sf::st_transform(pts, crs = sf::st_crs(dem)) |> terra::vect(),
-    method = method,
-    ID = FALSE
-  )[,1]
-}
+# Example use
+# dem_extract <- function(pts, method = c("simple", "bilinear"), ...) {
+#   method <- match.arg(method)
+#   dem <- 
+#     sf::st_bbox(pts) |> # simplify geometry to retrieve required dem
+#     sf::st_as_sfc() |> # recast to sfc to allow buffer around
+#     sf::st_buffer(units::set_units(50, m), nQuadSegs = 1) |> # add a margin to allow bilinear
+#     sf::st_bbox() |> # recompute bounding box before querying dem
+#     bcmaps::cded(aoi = _, ...) |> # obtain tiles
+#     terra::rast() # cast as raster
+#   terra::extract(
+#     x = dem, 
+#     y = sf::st_transform(pts, crs = sf::st_crs(dem)) |> terra::vect(),
+#     method = method,
+#     ID = FALSE
+#   )[,1]
+# }
 
 ```
 
@@ -197,10 +216,10 @@ read_GPX <- function(file) {
       #`class<-`("flightGPX")
 }
 
-flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
-  setNames(nm = _) |>
-  sample(1) |> # sample for now, can do full later
-  parallel::mclapply(read_GPX, mc.cores = parallel::detectCores()) # go parallel for faster process
+# flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
+#   setNames(nm = _) |>
+#   sample(1) |> # sample for now, can do full later
+#   parallel::mclapply(read_GPX, mc.cores = ifelse(isTRUE(Sys.info()[["sysname"]]=="Windows"), 1L, parallel::detectCores())) # go parallel for faster process
 
 # Process flight by flight? Probably
 
@@ -225,9 +244,9 @@ flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
 ## Incursion Zones
 ```{r incursion_zones}
 incursion_zones_distance <- list(
-  "0-500 m incursion zone" = units::set_units(c("from" = 0L , "to" = 500L), m),
-  "500-1000m incursion zone" = units::set_units(c("from" = 500L, "to" = 1000L), m),
-  "1000-1500m incursion zone" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
+  "High" = units::set_units(c("from" = 0L , "to" = 500L), m),
+  "Moderate" = units::set_units(c("from" = 500L, "to" = 1000L), m),
+  "Low" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
 )
 ```
 
@@ -254,6 +273,7 @@ filter_on_bbox <- function(aoi, sf_obj) {
   ]
 }
 
+# TODO: Document fonction
 compute_donut <- function(dist, sf_obj) {
   
   buff_oven <- function() {
@@ -270,24 +290,92 @@ compute_donut <- function(dist, sf_obj) {
     }
   }
   
+  buffers <- buff_oven()
+  
   bake_donut <- function(d) {
     d <- sort(d)
-    buffers <- buff_oven()
     sf::st_difference(buffers(d[2]), buffers(d[1]))
   }
   
   if (nrow(sf_obj)) { 
-    return(lapply(dist, bake_donut))
+    return(
+      c(
+        list("In UWR" = buffers("0")),
+        lapply(dist, bake_donut),
+        list("All" = buffers(do.call(max, dist) |> as.character()))
+      )
+    )
   }
   
   return(invisible())
 }
 
-# Process one flight
-flight_process.flightGPX <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m)) {
+empty_results <- function(flight, dist) {
+  zero <- function(...) as.difftime(0, units = "secs")
+  do.call(
+    data.table::data.table,
+    args = c(
+      list(
+        "Flight" = flight[["tracks"]][["name"]],
+        "In UWR" = zero()
+      ),
+      lapply(dist, zero),
+      list(
+        "All" = zero()
+      )
+    )
+  )
+}
+
+# TODO : Document
+remove_contiguous_duplicates <- function(tp, keep) {
   
+  # Less than 2 points, no need to drop any
+  if (nrow(tp) < 2) {
+    return(tp[,c(keep)])
+  }
+  # Extract coordinates
+  coords <- tp |> sf::st_coordinates()
+  # Compare neighbouring points
+  previous_seg_point_same_geom <- c(
+    FALSE, # First point, no previous to compare to
+    coords[-1L, 1L] == coords[-nrow(tp), 1L] & coords[-1L, 2L] == coords[-nrow(tp),2L]
+  )
+  # Remove contiguous duplicated geometries
+  return(tp[which(!previous_seg_point_same_geom),keep])
+  
+}
+
+compute_in_zone <- function(loi, incz) {
+  
+  inter <- parallel::mclapply(mc.cores = ifelse(isTRUE(Sys.info()[["sysname"]]=="Windows"), 1L, parallel::detectCores()),
+    incz[!names(incz) %in% "All"],
+    function(z) {
+      sf::st_intersection(loi, z)
+    }
+  )
+  
+  time_in_z <- lapply(inter, function(z) {
+    sum(
+      na.rm = TRUE,
+      ((sf::st_length(z) / z[["unmasked_length"]]) |> as.numeric()) * z[["time_deltas"]]
+    )
+  })
+  
+  time_in_z[["All"]] <- do.call(sum, time_in_z)
+  
+  return(list("Segments in zones" = inter, "Time in zones" = time_in_z))
+  
+}
+
+# Process one flight
+flight_process <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m), segments = TRUE) {
+  
+  # Flight track points (contiguous duplicates combined)
+  ftp <- flight[["track_points"]] |> remove_contiguous_duplicates(keep = c("ele", "time", "track_seg_point_id"))
   # Area of interest
-  aoi <- sf::st_bbox(flight[["tracks"]]) |>
+  aoi <- ftp |>
+    sf::st_bbox() |>
     sf::st_as_sfc() |>
     sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
     sf::st_transform(sf::st_crs(zones)) |>
@@ -298,75 +386,159 @@ flight_process.flightGPX <- function(flight, zones, telemetry, dist, max.altitud
   
   # Telemetry of interest
   #TODO: Consider data time for telemetry?
-  toi <- filter_on_bbox(aoi, telemetry)
+  # toi <- filter_on_bbox(aoi, telemetry)
+  
+  if (nrow(zoi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
   # Incursion
   incursions_zoi <- compute_donut(dist, zoi)
-  incursions_toi <- compute_donut(dist, toi)
+  # incursions_toi <- compute_donut(dist, toi)
+  
+  # Points of interest
+  # Points that intersect with the largest zone + the points before and after to create
+  # the LINESTRING at the zone entry
+  poi <- {
+    pts_in <- ftp |>
+      sf::st_transform(crs = sf::st_crs(incursions_zoi[["All"]])) |>
+      sf::st_intersects(incursions_zoi[["All"]], sparse = FALSE) |>
+      which() # Extract index
+    
+    # Add neighbor points, pmin/pmax to stay within valid points
+    pts_to_keep <- c(pmax(0L, pts_in - 1L), pts_in, pmin(pts_in + 1L,nrow(ftp))) |>
+      unique() |> sort() # Remove duplicates, sort indexes
+    
+    # Subset track points
+    poi <- ftp[pts_to_keep,]
+    
+    # Flag actual pts in incursion zones
+    poi[["outside"]] <- !pts_to_keep %in% pts_in
+    
+    poi # return
+  }
+  
+  if (nrow(poi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
   
   # Digital elevation model
-  dem <- bcmaps::cded(aoi, check_tiles = FALSE) |>
-    terra::rast()
+  dem <- bcmaps::cded(aoi, check_tiles = FALSE) |> terra::rast()
   
-  # Transfrom flight points to linestring
+  # Get ground level of points of interest
+  poi[["ground_ele"]] <- 
+    terra::extract(
+      x = dem, 
+      y = poi |>
+        sf::st_transform(crs = sf::st_crs(dem)) |>
+        terra::vect(),
+      method = "bilinear",
+      ID = FALSE
+    )[,1]
   
-  ground_level <- terra::extract(
-    x = dem, 
-    y = flight[["track_points"]] |> sf::st_geometry() |> sf::st_transform(crs = sf::st_crs(dem)) |> terra::vect(),
-    method = "bilinear",
-    ID = FALSE
-  )[,1]
+  # Above ground level (sometimes source elevation is wrong)
+  # This is where we might want to do some smoothing if flight ele is bad
+  # Currently do same as python, limit to 0L
+  poi[["agl"]] <- pmax(poi[["ele"]] - poi[["ground_ele"]], 0) |> units::set_units(m)
   
-  # This is where we might want to do some smoothing is flight ele is bad
-  above_ground_level <- pmax(flight[["track_points"]][["ele"]] - ground_level, 0)
+  # Transform points of interest to LINESTRING of interest
+  loi <- sf::st_union(
+    sf::st_geometry(poi)[-nrow(poi)],
+    sf::st_geometry(poi)[-1],
+    by_feature = TRUE
+  ) |> 
+    sf::st_cast("LINESTRING") |> 
+    sf::st_as_sf() |>
+    sf::st_transform(crs = sf::st_crs(zoi)) |>
+    sf::st_set_agr("idendity")
   
-  # Compute time deltas
-  time_deltas <- difftime(
-    flight[["track_points"]][["time"]][-1],
-    flight[["track_points"]][["time"]][-nrow(flight[["track_points"]])],
+  # Won't be using 3D distance as length calculation are for relative
+  # ratio only, 3D would not have a large enought impact on hypothesis
+  
+  # Add line of interest metadata, above ground levels, time deltas
+  # Keep point id for easier debugging, and in zone flag (to remove
+  # LINESTRING between points outside the zones, the resulting straight
+  # line could go through an incursion zone.
+  
+  loi[["agl_start"]] <- poi[["agl"]][-nrow(poi)]
+  loi[["agl_end"]] <- poi[["agl"]][-1]
+  loi[["track_seg_point_id_start"]] <- poi[["track_seg_point_id"]][-nrow(poi)]
+  loi[["track_seg_point_id_end"]] <- poi[["track_seg_point_id"]][-1]
+  loi[["outside_start"]] <- poi[["outside"]][-nrow(poi)]
+  loi[["outside_end"]] <- poi[["outside"]][-1]
+  loi[["time_deltas"]] <- difftime(
+    poi[["time"]][-1], 
+    poi[["time"]][-nrow(poi)],
     units = "secs"
   )
   
-  ?sf::st_linestring
-  flight[["track_points"]] |> sf::st_geometry() |> sf::st_coordinates() |> sf::st_linestring(dim = "XY") |> sf::st_as_sfc()
-  # Cut above a differential elevation of 500m
-  # Compute length of segment in incursion zones vs original length
-  # Multiply by time delta
+  # Drop line of interest with both points flagged as outside the zones
+  loi <- loi[which(!(loi[["outside_start"]] & loi[["outside_end"]])),]
+  
+  # Drop line of interest where both ends are above max.altitude threshold
+  # Otherwise we cannot be sure what portion within two records has been
+  # spend above the threshold.
+  loi <- loi[which(loi[["agl_start"]] < max.altitude | loi[["agl_end"]] < max.altitude),]
+  
+  if (nrow(loi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
+  
+  # Compute original length of linestring before apply incursion zones / viewshed masks
+  loi[["unmasked_length"]] <- sf::st_length(loi)
+  
+  # Set agr to avoid warning on intersection, since fields are kept constant with each feature
+  sf::st_agr(loi) <- factor("constant", levels(sf::st_agr(loi)))
   
   # Do viewshed
-  terra::viewshed()
+  #terra::viewshed()
+  
+  
+  # Compute time in each zone
+  # TODO: Can it be optimize? Could we avoid computing for line of interest
+  # Completly in zone
+  in_z <- compute_in_zone(loi, incursions_zoi)
+  
+  res <- list("Summary" = do.call(
+    data.table::data.table,
+    c(
+      list("Flight" = flight[["tracks"]][["name"]]),
+      in_z[["Time in zones"]]
+    )
+  ))
+  
+  if (isTRUE(segments)) {
+    res <- c(res, list(
+      "Segments" = in_z[["Segments in zones"]],
+      "Incursion zones" = incursions_zoi
+    ))
+  }
+  
+  return(res)
   
 }
 
-# system.time({test <- sf::st_crop(zones, aoi)})
-# system.time({
-#   test2 <- zones[
-#     which(
-#       .subset2(aoi, "xmin") < .subset2(zones, "xmax") &
-#       .subset2(aoi, "xmax") > .subset2(zones, "xmin") &
-#       .subset2(aoi, "ymin") < .subset2(zones, "ymax") &
-#       .subset2(aoi, "ymax") > .subset2(zones, "ymin")),
-#   ]
-# })
-# ggplot2::ggplot() + ggplot2::geom_sf(data = test) + ggplot2::geom_sf(data = flight$tracks)
-# ggplot2::ggplot() + ggplot2::geom_sf(data = test2) + ggplot2::geom_sf(data = flight$tracks)
-# 
-# Run from the function above
+```
+
+
+```{r testit}
+
 flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")
-zones <- habitat_areas
-telemetry <- wildlife_telemetry
-dist <- incursion_zones_distance
 
+processed <- flight_process(
+  flight = flight,
+  zones = habitat_areas,
+  telemetry = wildlife_telemetry,
+  dist = incursion_zones_distance
+)
 
+library(ggplot2)
 ggplot() +
-  geom_sf(data = incursions_zoi[[3]], fill = "beige") +
-  geom_sf(data = incursions_zoi[[2]], fill = "yellow") +
-  geom_sf(data = incursions_zoi[[1]], fill = "orange") +
-  geom_sf(data = zoi, fill = "red") +
-  geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "blue")
+  geom_sf(data = processed$`Incursion zones`$Low, fill = "beige") +
+  geom_sf(data = processed$`Incursion zones`$Moderate, fill = "yellow") +
+  geom_sf(data = processed$`Incursion zones`$High, fill = "orange") +
+  geom_sf(data = processed$`Incursion zones`$`In UWR`, fill = "red") +
+  geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "lightgreen")+
+  geom_sf(data = processed$Segments$`In UWR` |> sf::st_geometry(), colour = "darkblue") +
+  geom_sf(data = processed$Segments$High |> sf::st_geometry(), colour = "blue") +
+  geom_sf(data = processed$Segments$Moderate |> sf::st_geometry(), colour = "cornflowerblue") +
+  geom_sf(data = processed$Segments$Low |> sf::st_geometry(), colour = "skyblue")
 
+print(processed$Summary)
+  
 ```
 
-## Time in Incursion Zones
-```{r timeinzones}
-```

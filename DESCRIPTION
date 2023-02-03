@@ -11,7 +11,7 @@ Authors@R: c(
 Description: Process flight path data to provide stakeholders information about time and distance spent in each habitat area. Includes a Shiny application to interact with the fonctionalities contained within this package.
 Imports:
     sf,
-    terra,
+    terra (>= 1.6.41),
     data.table,
     parallel,
     units,

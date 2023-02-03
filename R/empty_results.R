@@ -1,4 +1,4 @@
-#' filter sf object on an area of interest using bounding box information created by `append_bbox_info`
+#' create template data.table for flight summary results
 #'
 #' @param flight sf object of flight data
 #' @param dist numeric distance

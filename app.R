@@ -1,13 +1,15 @@
 library(shiny)
 library(shinydashboard)
 library(DT)
-#library(flight.path.monitoring)
+library(flight.path.monitoring)
+
+flightPathDir <- file.path("data-raw", "Heli data", "NEH", "2021")
 
 ui <- dashboardPage(
   dashboardHeader(title = 'Flight Path Monitoring'),
 
   dashboardSidebar(
-    fileInput("FlightPathFile", "Upload a new flight path", accept = c(".gpx", ".zip", ".kml"))
+    fileInput("upload", "Upload a new flight path", accept = c(".gpx", ".zip", ".kml"), multiple = FALSE) #TODO allow multiple at some point
   ),
 
   dashboardBody(
@@ -27,7 +29,7 @@ ui <- dashboardPage(
 server <- function(input, output) {
 
   NewFlight <- reactive({
-    req(input$FlightPathFile)
+    req(input$upload)
 
     ext <- tools::file_ext(input$upload$name)
 
@@ -35,19 +37,14 @@ server <- function(input, output) {
            gpx = flight.path.monitoring::read_GPX(input$upload$datapath),
            kml = flight.path.monitoring::read_GPX(input$upload$datapath), #TODO parse kml function
            zip = flight.path.monitoring::read_GPX(input$upload$datapath), #TODO unzip
-           validate("Invalid file; Please upload a .csv or .tsv file")
-    )
+           validate("Invalid file; Please upload a .gpx,  .kml or .zip file")
+           )
+
+    file.copy(from = file$datapath,
+              to = file.path(flightPathDir, input$name),
+              overwrite = FALSE)
   })
 
-  output$contents <- renderTable({
-    file <- input$FlightPathFile
-    ext <- tools::file_ext(file$datapath)
-
-    req(file)
-    validate(need(ext %in% c("gpx", "kml", "zip"), "Please upload either a gpx, kml or zip file"))
-
-    read.csv(file$datapath, header = input$header)
-  })
 
   output$FlightPlot <- renderPlot({
     # Plot selected rows for List Of Flights. Use 1st observation if none selected.
@@ -55,9 +52,11 @@ server <- function(input, output) {
                   1L,
                   input$ListOfFlights_rows_selected)
     plot(iris$Sepal.Length[sel])
+    ggplot() +
+      geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "lightgreen")
   })
 
-  output$ListOfFlights <- DT::renderDT(iris, )
+  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)))
 }
 
 shinyApp(ui, server)

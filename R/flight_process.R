@@ -17,13 +17,15 @@
 flight_process <- function(flight, zones, telemetry, dist, max.altitude = units::set_units(500, m), segments = TRUE) {
 
   # Flight track points (contiguous duplicates combined)
-  ftp <- flight[["track_points"]] |> remove_contiguous_duplicates(keep = c("ele", "time", "track_seg_point_id"))
-  # Area of interest
+  ftp <- flight[["track_points"]] |>
+    remove_contiguous_duplicates(keep = c("ele", "time", "track_seg_point_id"))
+
+  # Area of interest : Bounding box of flight points + Maximum incursion distance + 50m
   aoi <- ftp |>
     sf::st_bbox() |>
     sf::st_as_sfc() |>
     sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
-    sf::st_transform(sf::st_crs(zones)) |>
+    sf::st_transform(crs = sf::st_crs(zones)) |>
     sf::st_bbox()
 
   # Zones of interest
@@ -90,8 +92,7 @@ flight_process <- function(flight, zones, telemetry, dist, max.altitude = units:
   ) |>
     sf::st_cast("LINESTRING") |>
     sf::st_as_sf() |>
-    sf::st_transform(crs = sf::st_crs(zoi)) |>
-    sf::st_set_agr("idendity")
+    sf::st_transform(crs = sf::st_crs(zoi))
 
   # Won't be using 3D distance as length calculation are for relative
   # ratio only, 3D would not have a large enought impact on hypothesis

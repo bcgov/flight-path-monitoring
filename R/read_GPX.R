@@ -6,9 +6,8 @@
 #' @export
 #'
 read_GPX <- function(file) {
-  layers_data <- st_layers(file)
+  layers_data <- sf::st_layers(file)
   non_empty <- layers_data[["name"]][which(layers_data[["features"]] > 0)] |>
     setNames(nm = _)
-  lapply(non_empty, st_read, dsn = file, quiet = TRUE)# |>
-  #`class<-`("flightGPX")
+  lapply(non_empty, st_read, dsn = file, quiet = TRUE)
 }

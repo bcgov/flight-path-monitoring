@@ -5,11 +5,9 @@
 
 compute_viewshed <- function(dem, loc){
 
-  dem <- rast(dem)
-
   #Convert long/lat to planar
   if (isTRUE(terra::is.lonlat(dem))){
-    dem <- project(dem, "EPSG:3153")
+    dem <- terra::project(dem, "EPSG:3153")
   }
 
   if (isTRUE(sf::st_is_longlat(loc))){ #TODO handle case where loc has no crs
@@ -25,6 +23,8 @@ compute_viewshed <- function(dem, loc){
   all_vs <- lapply(vs, values) |> as.data.frame() |> rowSums(na.rm=FALSE)|> as.logical()
 
   values(dem2) <- all_vs
+
+  coords2 <- {x <- coords[,c("X","Y")][!duplicated(coords[,c("X","Y")]),]; x[order(x[,1]),]}
 
   dem2
 }

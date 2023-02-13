@@ -12,6 +12,7 @@ Description: Process flight path data to provide stakeholders information about 
 Imports:
     sf,
     terra (>= 1.6.41),
+    xml2,
     data.table,
     parallel,
     units,

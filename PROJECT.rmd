@@ -223,21 +223,7 @@ incursion_zones_distance <- list(
 )
 ```
 
-## Interface
-```{r interface}
-
-#TODO: methods shenanigan dispatching for flightGPX and flightKML?
-# flight_analysis <- function(flights, zones, areas) {
-#   lapply(flights, flight_process, zones = zones, areas = areas)
-# }
-# 
-# flight_process <- function(flight, zones, areas) {
-#   UseMethod("flight_process", )
-# }
-
-```
-
-
+## Example
 ```{r testit}
 
 flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")

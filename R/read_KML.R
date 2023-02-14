@@ -1,4 +1,4 @@
-#' read a kml file into an r object
+#' Read a KML file into a list of simple feature object
 #'
 #' @param file character string of filename
 #' @return sf object
@@ -7,18 +7,24 @@
 #'
 read_KML <- function(file) {
 
+  # Checks
+  stopifnot(
+    file.exists(file), # Does the file exists
+    {tools::file_ext(file) |> tolower()} == "kml" # Does it have a kml extension
+  )
+
   # Load file nodes
   nodes <- xml2::read_xml(file)
 
-  # KML samples have two namespaces
+  # KML samples have two namespaces from `xml2::xml_ns()`
   # d1 <-> http://www.opengis.net/kml/2.2
   # gx <-> http://www.google.com/kml/ext/2.2
 
-  # Process LineString which should be the flight path
-  # in CRS:4326
+  # Process LineString which should be the flight path in CRS:4326
   tracks <- {
 
-    linestring_node <- nodes |> xml2::xml_find_first("//d1:LineString") # Find the LineString
+    # Find the LineString
+    linestring_node <- nodes |> xml2::xml_find_first("//d1:LineString")
 
     name <- linestring_node |>
       xml2::xml_parent() |> # Move up
@@ -56,14 +62,17 @@ read_KML <- function(file) {
   # used to derive the elevation values.
   track_points <- {
 
-    track_node <- nodes |> xml2::xml_find_first("//gx:Track") # Find the gx:Track node
+     # Find the gx:Track node
+    track_node <- nodes |> xml2::xml_find_first("//gx:Track")
 
-    time <- track_node |> # Extract timestamp of each gx::coord
+     # Extract timestamp of each gx::coord
+    time <- track_node |>
       xml2::xml_find_all("d1:when") |> # Get the when nodes
       xml2::xml_text() |> # Get their text content
       as.POSIXlt(tz = "UTC", format = "%Y-%m-%dT%H:%M:%OS") |> # Parse text to timestamp
       as.POSIXct() # Convert from POSIX list to compact format
 
+    # Create a simple feature from the coordinates
     track_node |>
       xml2::xml_find_all("gx:coord") |> # Find the gx:coord nodes
       xml2::xml_text() |> # Get their text content
@@ -75,9 +84,11 @@ read_KML <- function(file) {
       data.table::set(j = "track_seg_point_id", value = seq_len(length(time))) |> # Add an id field
       data.table::set(j = "time", value = time) |> # Add a time field
       sf::st_as_sf(coords = c("x", "y"), crs = 4326) # Convert to sf object
+
   }
 
   # Return in a format similar to read_GPX, so we can reuse
-  # downstream flight processing pipeline
+  # downstream in the flight processing pipeline
   return(list(tracks = tracks, track_points = track_points))
+
 }

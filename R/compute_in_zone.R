@@ -9,11 +9,14 @@
 #'
 compute_in_zone <- function(loi, incz) {
 
-  inter <- mclapply(mc.cores = ifelse(isTRUE(Sys.info()[["sysname"]]=="Windows"), 1L, detectCores()),
-                              incz[!names(incz) %in% "All"],
-                              function(z) {
-                                st_intersection(loi, z)
-                              }
+  cores <- if (isTRUE(.Platform$OS.type == "unix")) parallel::detectCores() - 1L else 1L
+
+  inter <- parallel::mclapply(
+    mc.cores = cores,
+    incz[!names(incz) %in% c("Buffers", "All")],
+    function(z) {
+      sf::st_intersection(loi, z)
+    }
   )
 
   time_in_z <- lapply(inter, function(z) {

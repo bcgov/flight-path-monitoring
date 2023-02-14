@@ -33,7 +33,14 @@ compute_donut <- function(dist, sf_obj) {
       c(
         list("In UWR" = buffers("0")),
         lapply(dist, bake_donut),
-        list("All" = buffers(do.call(max, dist) |> as.character()))
+        {
+          allzones <- buffers(do.call(max, dist) |> as.character())
+          allbuffers <- sf::st_difference(allzones, buffers("0"))
+          list(
+            "Buffers" = allbuffers,
+            "All" = allzones
+          )
+        }
       )
     )
   }

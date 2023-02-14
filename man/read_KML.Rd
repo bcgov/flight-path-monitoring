@@ -2,7 +2,7 @@
 % Please edit documentation in R/read_KML.R
 \name{read_KML}
 \alias{read_KML}
-\title{read a kml file into an r object}
+\title{Read a KML file into a list of simple feature object}
 \usage{
 read_KML(file)
 }
@@ -13,5 +13,5 @@ read_KML(file)
 sf object
 }
 \description{
-read a kml file into an r object
+Read a KML file into a list of simple feature object
 }

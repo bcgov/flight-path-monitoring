@@ -2,16 +2,16 @@
 % Please edit documentation in R/read_GPX.R
 \name{read_GPX}
 \alias{read_GPX}
-\title{read a gpx file into an r object}
+\title{Read a GPX file into a list of simple feature object}
 \usage{
 read_GPX(file)
 }
 \arguments{
-\item{file}{character string of filename}
+\item{file}{A character. Path to a GPX file.}
 }
 \value{
 sf object
 }
 \description{
-read a gpx file into an r object
+Read a GPX file into a list of simple feature object
 }

@@ -9,7 +9,7 @@ flight_process(
   zones,
   telemetry,
   dist,
-  max.altitude = units::set_units(500, m),
+  max_altitude = units::set_units(500, m),
   segments = TRUE
 )
 }
@@ -22,7 +22,7 @@ flight_process(
 
 \item{dist}{list named list of distance in meters defined using \code{set_units}}
 
-\item{max.altitude}{distance in meters defined using \code{set_units} to represent the maximum altitude for a track point to be considered}
+\item{max_altitude}{distance in meters defined using \code{set_units} to represent the maximum altitude for a track point to be considered}
 
 \item{segments}{boolean, if TRUE segments within zones of interest are returned. Defaults to TRUE}
 }

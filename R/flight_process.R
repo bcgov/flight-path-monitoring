@@ -55,9 +55,7 @@ flight_process <- function(flight, zones, telemetry, dist, max_altitude = units:
   if (nrow(loi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
   # Compute time in each zone
-  # TODO: Can it be optimize? Could we avoid computing for line of interest
-  # Completly in UWR zone (flagged as inside)
-  in_z <- compute_in_zone(loi, incursions_zoi)
+  in_z <- compute_time_in_zone(loi, incursions_zoi)
 
   res <- list("Summary" = do.call(
     data.table::data.table,

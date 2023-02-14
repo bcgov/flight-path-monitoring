@@ -7,7 +7,7 @@
 #' @return list summary table of time and segments in incursion zones
 #' @export
 #'
-compute_time_in_zone <- function(loi, incz) {
+compute_in_zone <- function(loi, incz) {
 
   cores <- if (isTRUE(.Platform$OS.type == "unix")) parallel::detectCores() - 1L else 1L
 

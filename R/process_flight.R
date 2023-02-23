@@ -1,6 +1,6 @@
 #' Process flight data and produce summary table of time in zones
 #'
-#' @param flight Flight data obtained from `ingest_flights`
+#' @param flight Flight data obtained from subsetting results of `ingest_flights`.
 #' @param zones Geometries of incursion zones and telemetries.
 #' @param dist A named numeric vector of distances from `distances`.
 #' @param max_altitude Maximum altitude in meters for a track point to be considered.
@@ -14,7 +14,7 @@
 #' @return A list with a summary table of time in zones and optional geometries.
 #' @export
 #'
-flight_process <- function(flight, zones, dist, max_altitude = 500, geom_out = TRUE, check_tiles = FALSE) {
+process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = TRUE, check_tiles = FALSE) {
 
   # Flight track points (contiguous duplicates combined)
   ftp <- flight[["track_points"]][, c("ele", "time", "track_seg_point_id")] |>
@@ -72,7 +72,7 @@ flight_process <- function(flight, zones, dist, max_altitude = 500, geom_out = T
 
 }
 
-#' To reduce the size of the `process_flights` function
+#' To reduce the size of the `process_flight` function
 #' @noRd
 #'
 compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
@@ -114,7 +114,7 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
 
 }
 
-#' To reduce the size of the `process_flights` function
+#' To reduce the size of the `process_flight` function
 #' @noRd
 #'
 compute_loi <- function(poi, zoi) {

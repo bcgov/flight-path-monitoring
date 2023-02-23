@@ -160,7 +160,7 @@ if (!file.exists(presaved)) {
 
 flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")
 
-processed <- flight_process(
+processed <- process_flight(
   flight = flight,
   zones = habitat_areas,
   dist = distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")

@@ -7,7 +7,7 @@
 #' @importFrom tools file_path_sans_ext
 #' @export
 #'
-ingest_flights <- function(dsn, query = NULL) {
+read_flights <- function(dsn, query = NULL) {
 
   # Character vector
   if (inherits(dsn, "character")) {
@@ -30,7 +30,7 @@ ingest_flights <- function(dsn, query = NULL) {
 #'
 #' @param fpath A file path.
 #' @importFrom tools file_ext
-#' @rdname ingest_flights
+#' @rdname read_flights
 #' @export
 #'
 read_flight_file <- function(fpath) {
@@ -64,7 +64,7 @@ read_flight_file <- function(fpath) {
 #' Read a GPX file into a list of simple feature objects
 #'
 #' @import sf
-#' @rdname ingest_flights
+#' @rdname read_flights
 #' @export
 #'
 read_GPX <- function(fpath) {
@@ -96,7 +96,7 @@ read_GPX <- function(fpath) {
 #' Read a KML file into a list of simple feature object
 #'
 #' @import xml2
-#' @rdname ingest_flights
+#' @rdname read_flights
 #' @export
 #'
 read_KML <- function(fpath) {
@@ -189,7 +189,7 @@ read_KML <- function(fpath) {
 #' Read flights from TRACKS database
 #'
 #' @importFrom DBI dbGetQuery
-#' @rdname ingest_flights
+#' @rdname read_flights
 #' @export
 #'
 read_flight_db <- function(dsn, query) {

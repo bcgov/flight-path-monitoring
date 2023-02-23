@@ -1,0 +1,184 @@
+---
+title: "Flight path monitoring"
+author: "Boostao"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+if (!requireNamespace("sf", quietly = TRUE)) remotes::install_github("r-spatial/sf")
+if (!requireNamespace("bcdata", quietly = TRUE)) remotes::install_github("bcgov/bcdata")
+if (!requireNamespace("bcmaps", quietly = TRUE)) remotes::install_github("bcgov/bcmaps")
+if (!requireNamespace("data.table", quietly = TRUE)) install.packages("data.table")
+if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
+if (!requireNamespace("terra", quietly = TRUE)) remotes::install_github("rspatial/terra")
+if (!requireNamespace("leaflet", quietly = TRUE)) remotes::install_github("rstudio/leaflet")
+
+library(bcdata)
+library(lubridate)
+library(leaflet)
+library(flight.path.monitoring)
+```
+
+## Flight path monitoring analysis
+
+This document will explain the data manipulation required to conduct flight path analysis of time spent in wild life habitat areas.
+
+The data required for this analysis are:
+ - Legal habitat areas
+ - Digital elevation model
+ - Flightline data
+ 
+## Habitat Areas
+```{r habitat_areas}
+
+presaved <- "./data-raw/Habitat/habitat_areas.rds"
+
+if (!file.exists(presaved)) {
+  
+  # Skeena - Mountaingoat winter habitat 
+  tmpdir <- file.path(tempdir(),"zipped")
+  unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
+  Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir, drivers = "ESRI Shapefile", quiet = TRUE)
+  Skeena_mountaingoatwinterhab[["id"]] <- paste(
+    "Skeena-mountaingoatwinterhab",
+    Skeena_mountaingoatwinterhab[["OBJECTID"]],
+    sep = "."
+  )
+  # move id in first position, purely aesthetic
+  n <- ncol(Skeena_mountaingoatwinterhab)
+  Skeena_mountaingoatwinterhab <- Skeena_mountaingoatwinterhab[, c(n, 1L:(n-1L))]
+  unlink(tmpdir, recursive = TRUE)
+  
+  # Ungulate Winter Range- Approved
+  # bcdc_search("Ungulate Winter Range")
+  Ungulate_winterrange_approved <- bcdata::bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+    bcdata::collect()
+  
+  # Ungulate Winter Range- Proposed
+  # bcdc_search("Ungulate Winter Range")
+  Ungulate_winterrange_proposed <- bcdata::bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
+    bcdata::collect()
+  
+  # Legal Planning Objectives - Current - Polygon
+  # bcdc_search("Legal Planning Objectives Polygon")
+  legal_habitat_areas <- bcdata::bcdc_get_record("2c02040c-d7c5-4960-8d04-dea01d6d3e9f") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(
+      STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan",
+      LEGAL_FEAT_OBJECTIVE == "Caribou Winter Habitat Zones"
+    ) |>
+    bcdata::collect()
+  
+  # Non Legal Planning Features - Current - Polygon
+  # bcdc_search("Non Legal Planning Features Polygon")
+  non_legal_habitat_areas <- bcdata::bcdc_get_record("5d859a89-f173-4006-82f9-16254de2c1fc") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE == "High Value Mountain Ungulate Habitat"  
+      ) |
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Lakes District Land and Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
+        NON_LEGAL_FEAT_ATRB_2_VALUE %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
+      ) |
+      (
+        STRGC_LAND_RSRCE_PLAN_NAME == "Morice Land and Resource Management Plan" &
+        NON_LEGAL_FEAT_OBJECTIVE %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
+      )
+    ) |>
+    bcdata::collect()
+  
+  habitat_areas <- rbind(
+   Skeena_mountaingoatwinterhab[,"id"],
+   Ungulate_winterrange_approved[,"id"],
+   Ungulate_winterrange_proposed[,"id"],
+   legal_habitat_areas[,"id"],
+   non_legal_habitat_areas[,"id"]
+  ) |> append_bbox_info()
+  
+  rm(
+   Skeena_mountaingoatwinterhab,
+   Ungulate_winterrange_approved,
+   Ungulate_winterrange_proposed,
+   legal_habitat_areas,
+   non_legal_habitat_areas
+  )
+  saveRDS(habitat_areas, presaved)
+
+} else {
+  
+  habitat_areas <- readRDS(presaved)
+  
+}
+
+```
+
+## Telemetry
+```{r wildlife_telemetry}
+
+presaved <- "./data-raw/Habitat/wildlife_telemetry.rds"
+
+if (!file.exists(presaved)) {
+  
+  # bcdc_search("Wildlife Species Inventory Telemetry Observations")
+  # Public, nothing after 2015 for Caribou
+  # Will use as an example
+  wildlife_telemetry <- bcdata::bcdc_get_record("6d48657f-ab33-43c5-ad40-09bd56140845") |>
+    bcdata::bcdc_query_geodata() |>
+    bcdata::filter(SPECIES_CODE %in% c("M-RATA"), OBSERVATION_YEAR >= 2015) |>
+    bcdata::collect()
+  
+  wildlife_telemetry[["timestamp"]] <- wildlife_telemetry$OBSERVATION_DATE +
+    lubridate::hours(wildlife_telemetry$OBSERVATION_HOUR) +
+    lubridate::minutes(wildlife_telemetry$OBSERVATION_MINUTE)
+  
+  wildlife_telemetry <- wildlife_telemetry[,c("id", "timestamp")] |>
+    append_bbox_info()
+  
+  saveRDS(wildlife_telemetry, presaved)  
+  
+} else {
+  
+  wildlife_telemetry <- readRDS(presaved)
+  
+}
+
+```
+
+## Example
+```{r testit}
+
+flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533.gpx")
+
+processed <- process_flight(
+  flight = flight,
+  zones = habitat_areas,
+  dist = distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")
+)
+
+library(ggplot2)
+ggplot() +
+  geom_sf(data = processed$`Incursion zones`$Low, fill = "beige") +
+  geom_sf(data = processed$`Incursion zones`$Moderate, fill = "yellow") +
+  geom_sf(data = processed$`Incursion zones`$High, fill = "orange") +
+  geom_sf(data = processed$`Incursion zones`$`In UWR`, fill = "red") +
+  geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "lightgreen")+
+  geom_sf(data = processed$Segments$`In UWR` |> sf::st_geometry(), colour = "darkblue") +
+  geom_sf(data = processed$Segments$High |> sf::st_geometry(), colour = "blue") +
+  geom_sf(data = processed$Segments$Moderate |> sf::st_geometry(), colour = "cornflowerblue") +
+  geom_sf(data = processed$Segments$Low |> sf::st_geometry(), colour = "skyblue")
+
+print(processed$Summary)
+  
+```
+

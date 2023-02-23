@@ -2,4 +2,8 @@
 ^\.Rproj\.user$
 ^py$
 ^data-raw$
-*.html
+\.html
+^PROJECT.rmd$
+^Rplot_donut_viz.png$
+^app$
+^\.github$

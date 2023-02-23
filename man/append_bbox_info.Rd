@@ -10,8 +10,11 @@ append_bbox_info(sf_obj)
 \item{sf_obj}{sf object}
 }
 \value{
-sf object with 4 new columns : xmin, ymin, xmax and ymax
+same sf object with 4 new columns : xmin, ymin, xmax and ymax
 }
 \description{
 Create a bounding box for each geometries in an sf object
+}
+\details{
+Used for faster lookup when selecting area of interest.
 }

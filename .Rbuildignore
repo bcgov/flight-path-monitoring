@@ -3,3 +3,7 @@
 ^py$
 ^data-raw$
 \.html
+^PROJECT.rmd$
+^Rplot_donut_viz.png$
+^app$
+^\.github$

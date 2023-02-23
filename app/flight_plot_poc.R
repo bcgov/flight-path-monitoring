@@ -60,7 +60,7 @@ read_GPX <- function(file) {
 }
 
 
-compute_donut <- function(dist, sf_obj) {
+compute_buffers <- function(dist, sf_obj) {
 
   buff_oven <- function() {
     precomputed_dist <- list(
@@ -110,7 +110,7 @@ zoi <- filter_on_bbox(aoi, zones)
 toi <- filter_on_bbox(aoi, telemetry)
 
 # Incursion
-incursions_zoi <- compute_donut(dist, zoi)
+incursions_zoi <- compute_buffers(dist, zoi)
 
 
 red_col <- "#db0f27"

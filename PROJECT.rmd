@@ -20,8 +20,7 @@ if (!requireNamespace("leaflet", quietly = TRUE)) remotes::install_github("rstud
 library(bcdata)
 library(lubridate)
 library(leaflet)
-
-devtools::load_all()
+library(flight.path.monitoring)
 ```
 
 ## Flight path monitoring analysis
@@ -156,73 +155,6 @@ if (!file.exists(presaved)) {
 
 ```
 
-## Digital Elevation Model
-```{r dem}
-
-# Example use
-# dem_extract <- function(pts, method = c("simple", "bilinear"), ...) {
-#   method <- match.arg(method)
-#   dem <- 
-#     sf::st_bbox(pts) |> # simplify geometry to retrieve required dem
-#     sf::st_as_sfc() |> # recast to sfc to allow buffer around
-#     sf::st_buffer(units::set_units(50, m), nQuadSegs = 1) |> # add a margin to allow bilinear
-#     sf::st_bbox() |> # recompute bounding box before querying dem
-#     bcmaps::cded(aoi = _, ...) |> # obtain tiles
-#     terra::rast() # cast as raster
-#   terra::extract(
-#     x = dem, 
-#     y = sf::st_transform(pts, crs = sf::st_crs(dem)) |> terra::vect(),
-#     method = method,
-#     ID = FALSE
-#   )[,1]
-# }
-
-```
-
-## Flights
-
-```{r flightlines}
-
-#TODO: Still unsure if we will need a different method depending on format, maybe not
-#setClass("flightGPX", contains = c("list"))
-#setClass("flightKML", contains = c("list"))
-#TODO: Will deal with kml format later, might need to write a custom driver
-
-
-# flights <- list.files("./data-raw/Heli data/NEH/2021", full.names = TRUE) |>
-#   setNames(nm = _) |>
-#   sample(1) |> # sample for now, can do full later
-#   parallel::mclapply(read_GPX, mc.cores = ifelse(isTRUE(Sys.info()[["sysname"]]=="Windows"), 1L, parallel::detectCores())) # go parallel for faster process
-
-# Process flight by flight? Probably
-
-#TODO: Investigate
-# GPS Elevation not reliable unless you can fly below mountains?
-# f <- read_GPX("./data-raw/Heli data/NEH/2021/20220317-145549-0032969-139533.gpx")
-# pts <- f$track_points[3673:3713,] |> sf::st_geometry()
-# gps_ele <- f$track_points[3673:3713,]$ele
-# real_ele <- dem_extract(pts, method = "bilinear", check_tiles = FALSE)
-# leaflet::leaflet(pts) |> 
-#   leaflet::addProviderTiles("OpenTopoMap") |> 
-#   leaflet::addMarkers(
-#     label = sprintf(
-#       "<p>GPS Elevation: %s<br>DEM Elevation: %s</p>",
-#       gps_ele,
-#       round(real_ele, 2)
-#     ) |> lapply(FUN = htmltools::HTML)
-#   )
-
-```
-
-## Incursion Zones
-```{r incursion_zones}
-incursion_zones_distance <- list(
-  "High" = units::set_units(c("from" = 0L , "to" = 500L), m),
-  "Moderate" = units::set_units(c("from" = 500L, "to" = 1000L), m),
-  "Low" = units::set_units(c("from" = 1000L, "to" = 1500L), m)
-)
-```
-
 ## Example
 ```{r testit}
 
@@ -231,8 +163,7 @@ flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533
 processed <- flight_process(
   flight = flight,
   zones = habitat_areas,
-  telemetry = wildlife_telemetry,
-  dist = incursion_zones_distance
+  dist = distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")
 )
 
 library(ggplot2)

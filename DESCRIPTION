@@ -8,16 +8,20 @@ Authors@R: c(
     person("Francois", "Bornais", email = "francois@boostao.ca", role = c("aut")),
     person("Nicolas", "Gauthier", email = "nicolas@boostao.ca", role = c("aut")),
     person(family = "Province of British Columbia", role = c("cph", "fnd")))
-Description: Process flight path data to provide stakeholders information about time and distance spent in each habitat area. Includes a Shiny application to interact with the fonctionalities contained within this package.
+Description: Process flight path data to provide stakeholders information about time and distance spent in each habitat area. Includes a Shiny application to interact with the features contained within this package.
 Imports:
     sf,
     terra (>= 1.6.41),
     xml2,
+    tools,
+    DBI,
     data.table,
     parallel,
-    units,
     bcmaps
 License: Apache License (== 2)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

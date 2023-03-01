@@ -33,15 +33,15 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
 
   if (nrow(zoi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
-  # Incursion
-  incursions_zoi <- buffers(zoi, dist)
+  # Add buffers
+  zoi <- buffers(zoi, dist)
 
   # Points of interest
-  poi <- compute_poi(ftp, incursions_zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
+  poi <- compute_poi(ftp, zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
   if (nrow(poi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
   # Lines of interest
-  loi <- compute_loi(poi, zoi)
+  loi <- compute_loi(poi, sf::st_crs(zoi[[1]]))
 
   # Record filtered loi
   loi_filtered <- loi[which(loi[["filtered"]]),]
@@ -50,7 +50,7 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
   if (nrow(loi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
 
   # Compute time in each zone
-  in_z <- time_in_zone(loi, incursions_zoi)
+  in_z <- time_in_zone(loi, zoi)
 
   res <- list("Summary" = do.call(
     data.table::data.table,
@@ -62,9 +62,12 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
 
   if (isTRUE(geom_out)) {
     res <- c(res, list(
-      "Segments" = in_z[["Segments in zones"]],
-      "Incursion zones" = incursions_zoi,
-      "Filtered" = loi_filtered
+      "flight" = flight[["tracks"]] |> sf::st_geometry(),
+      "segments" = c(
+        in_z[["Segments in zones"]] |> lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])),
+        list("filtered" = loi_filtered |> sf::st_transform(crs = sf::st_crs(flight[["tracks"]])))
+      ),
+      "zones" = zoi |> lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]]))
     ))
   }
 
@@ -117,7 +120,7 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
 #' To reduce the size of the `process_flight` function
 #' @noRd
 #'
-compute_loi <- function(poi, zoi) {
+compute_loi <- function(poi, crs) {
 
   # Transform points of interest to LINESTRING of interest
   # CRS transform is done after the union to avoid extra
@@ -129,7 +132,7 @@ compute_loi <- function(poi, zoi) {
   ) |>
     sf::st_cast("LINESTRING") |>
     sf::st_as_sf() |>
-    sf::st_transform(crs = sf::st_crs(zoi))
+    sf::st_transform(crs = crs)
 
   # Won't be using 3D distance as length calculation are for relative
   # ratio only, 3D would not have a large enough impact on hypothesis

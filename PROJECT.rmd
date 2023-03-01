@@ -163,20 +163,35 @@ flight <- read_GPX("./data-raw/Heli data/NEH/2021/20220214-162736-0031550-139533
 processed <- process_flight(
   flight = flight,
   zones = habitat_areas,
-  dist = distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")
+  dist = distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR")
 )
 
 library(ggplot2)
 ggplot() +
-  geom_sf(data = processed$`Incursion zones`$Low, fill = "beige") +
-  geom_sf(data = processed$`Incursion zones`$Moderate, fill = "yellow") +
-  geom_sf(data = processed$`Incursion zones`$High, fill = "orange") +
-  geom_sf(data = processed$`Incursion zones`$`In UWR`, fill = "red") +
-  geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "lightgreen")+
-  geom_sf(data = processed$Segments$`In UWR` |> sf::st_geometry(), colour = "darkblue") +
-  geom_sf(data = processed$Segments$High |> sf::st_geometry(), colour = "blue") +
-  geom_sf(data = processed$Segments$Moderate |> sf::st_geometry(), colour = "cornflowerblue") +
-  geom_sf(data = processed$Segments$Low |> sf::st_geometry(), colour = "skyblue")
+  geom_sf(data = processed$zones$low, fill = "beige") +
+  geom_sf(data = processed$zones$moderate, fill = "yellow") +
+  geom_sf(data = processed$zones$high, fill = "orange") +
+  geom_sf(data = processed$zones$in_UWR, fill = "red") +
+  geom_sf(data = processed$flight |> sf::st_geometry(), colour = "lightgreen")+
+  geom_sf(data = processed$segments$in_UWR |> sf::st_geometry(), colour = "darkblue") +
+  geom_sf(data = processed$segments$high |> sf::st_geometry(), colour = "blue") +
+  geom_sf(data = processed$segments$moderate |> sf::st_geometry(), colour = "cornflowerblue") +
+  geom_sf(data = processed$segments$low |> sf::st_geometry(), colour = "skyblue") +
+  geom_sf(data = processed$segments$filtered |> sf::st_geometry(), colour = "deeppink")
+
+library(leaflet)
+leaflet() |>
+  addProviderTiles(provider = "Esri.WorldTopoMap") |>
+  addPolygons(data = processed$zones$in_UWR, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
+  addPolygons(data = processed$zones$high, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
+  addPolygons(data = processed$zones$moderate, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
+  addPolygons(data = processed$zones$low, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
+  addPolylines(data = processed$flight, weight = 1, color = "darkgreen", dashArray = 4) |>
+  addPolylines(data = processed$segments$in_UWR, weight = 2, color = "darkblue", opacity = 1) |>
+  addPolylines(data = processed$segments$high, weight = 2, color = "blue", opacity = 1) |>
+  addPolylines(data = processed$segments$moderate, weight = 2, color = "cornflowerblue", opacity = 1) |>
+  addPolylines(data = processed$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
+  addPolylines(data = processed$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
 
 print(processed$Summary)
   

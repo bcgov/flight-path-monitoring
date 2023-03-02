@@ -2,6 +2,7 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(flight.path.monitoring)
+library(leaflet)
 
 flightPathDir <- file.path("data-raw", "Heli data", "NEH", "2021")
 
@@ -15,7 +16,7 @@ ui <- dashboardPage(
   dashboardBody(
 
     fluidRow(
-      box(plotOutput("FlightPlot", height = 250))
+      box(leafletOutput("flight_map", height = 500))
     ),
 
     fluidRow(
@@ -30,33 +31,30 @@ server <- function(input, output) {
 
   NewFlight <- reactive({
     req(input$upload)
-
-    ext <- tools::file_ext(input$upload$name)
-
-    switch(ext,
-           gpx = flight.path.monitoring::read_GPX(input$upload$datapath),
-           kml = flight.path.monitoring::read_GPX(input$upload$datapath), #TODO parse kml function
-           zip = flight.path.monitoring::read_GPX(input$upload$datapath), #TODO unzip
-           validate("Invalid file; Please upload a .gpx,  .kml or .zip file")
-           )
+    read_flights(input$upload$datapath)
 
     file.copy(from = file$datapath,
               to = file.path(flightPathDir, input$name),
               overwrite = FALSE)
   })
 
+  flight_row <- reactive({ifelse(is.null(input$ListOfFlights_rows_selected),
+                                      1L,
+                                      input$ListOfFlights_rows_selected)})
 
-  output$FlightPlot <- renderPlot({
-    # Plot selected rows for List Of Flights. Use 1st observation if none selected.
-    sel <- ifelse(is.null(input$ListOfFlights_rows_selected),
-                  1L,
-                  input$ListOfFlights_rows_selected)
-    plot(iris$Sepal.Length[sel])
-    ggplot() +
-      geom_sf(data = flight$tracks |> sf::st_geometry(), colour = "lightgreen")
+  flight <- reactive({
+    read_GPX(list.files(flightPathDir, full.names = TRUE)[flight_row()])
   })
 
-  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)))
+  output$flight_map <- renderLeaflet({
+    leaflet() |>
+      addProviderTiles(provider = "Esri.WorldTopoMap") |>
+      addPolylines(data = st_transform(flight()$tracks, "WGS84"), weight = 1, color = "black", dashArray = 4)
+  })
+
+  map_proxy <- leafletProxy("flight_map")
+
+  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)), selection = list(mode = 'single', selected = 1L))
 }
 
 shinyApp(ui, server)

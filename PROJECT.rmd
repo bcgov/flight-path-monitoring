@@ -193,7 +193,6 @@ leaflet() |>
   addPolylines(data = processed$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
   addPolylines(data = processed$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
 
-print(processed$Summary)
+print(processed)
   
 ```
-

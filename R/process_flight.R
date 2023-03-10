@@ -52,7 +52,7 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
   # Compute time in each zone
   in_z <- time_in_zone(loi, zoi)
 
-  res <- list("Summary" = do.call(
+  res <- list("summary" = do.call(
     data.table::data.table,
     c(
       list("Flight" = flight[["tracks"]][["name"]]),
@@ -71,8 +71,18 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
     ))
   }
 
+  attr(res, "class") <- c("flightsummary", class(res))
+
   return(res)
 
+}
+
+#' Print flight analysis
+#' @rdname process_flight
+#' @export
+#'
+print.flightsummary <- function(x) {
+  print(x[["summary"]])
 }
 
 #' To reduce the size of the `process_flight` function
@@ -99,7 +109,7 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
     which()
 
   # Add neighbor points, pmin/pmax to stay within valid points
-  pts_to_keep <- c(pmax(0L, pts_in_all - 1L), pts_in_all, pmin(pts_in_all + 1L,nrow(ftp))) |>
+  pts_to_keep <- c(pmax(1L, pts_in_all - 1L), pts_in_all, pmin(pts_in_all + 1L,nrow(ftp))) |>
     unique() |> sort() # Remove duplicates, sort indexes
 
   # Subset track points
@@ -170,16 +180,20 @@ compute_loi <- function(poi, crs) {
 #'
 empty_results <- function(flight, dist) {
 zero <- function(...) as.difftime(0, units = "secs")
-do.call(
-  data.table::data.table,
-  args = c(
-    list(
-      "Flight" = flight[["tracks"]][["name"]]
-    ),
-    lapply(dist, zero),
-    list(
-      "All" = zero()
+  res <- list("summary" =
+    do.call(
+      data.table::data.table,
+      args = c(
+        list(
+          "Flight" = flight[["tracks"]][["name"]]
+        ),
+        lapply(dist, zero),
+        list(
+          "All" = zero()
+        )
+      )
     )
   )
-)
+  attr(res, "class") <- c("flightsummary", class(res))
+  return(res)
 }

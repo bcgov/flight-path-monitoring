@@ -78,10 +78,11 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
 }
 
 #' Print flight analysis
-#' @rdname process_flight
+#' @param x Flight analysis results to print
+#' @param ... further arguments passed to or from other methods.
 #' @export
 #'
-print.flightsummary <- function(x) {
+print.flightsummary <- function(x, ...) {
   print(x[["summary"]])
 }
 

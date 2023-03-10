@@ -118,7 +118,10 @@ dist <- distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR")
 
 ## Performing the analysis
 ```r
-flight_analysis <-  system.file("flight.gpx", package = "flight.path.monitoring") |>
+system.file("flight.tar.gz", package = "flight.path.monitoring") |>
+  untar(exdir = tempdir())
+
+flight_analysis <-  file.path(tempdir(), "flight.gpx") |>
   read_GPX() |>
   process_flight(zones = habitat_areas, dist = dist)
 ```

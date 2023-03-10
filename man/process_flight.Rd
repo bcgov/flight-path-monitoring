@@ -2,7 +2,6 @@
 % Please edit documentation in R/process_flight.R
 \name{process_flight}
 \alias{process_flight}
-\alias{print.flightsummary}
 \title{Process flight data and produce summary table of time in zones}
 \usage{
 process_flight(
@@ -13,8 +12,6 @@ process_flight(
   geom_out = TRUE,
   check_tiles = FALSE
 )
-
-\method{print}{flightsummary}(x)
 }
 \arguments{
 \item{flight}{Flight data obtained from subsetting results of \code{ingest_flights}.}
@@ -37,6 +34,4 @@ A list with a summary table of time in zones and optional geometries.
 }
 \description{
 Process flight data and produce summary table of time in zones
-
-Print flight analysis
 }

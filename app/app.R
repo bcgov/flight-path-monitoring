@@ -5,6 +5,9 @@ library(flight.path.monitoring)
 library(leaflet)
 
 flightPathDir <- file.path("data-raw", "Heli data", "NEH", "2021")
+#habitat_areas <- readRDS(paste0(ressources_path, "/habitat_areas.rds"))
+#wildlife_telemetry <- readRDS(paste0(ressources_path, "/wildlife_telemetry.rds"))
+
 
 ui <- dashboardPage(
   dashboardHeader(title = 'Flight Path Monitoring'),
@@ -16,10 +19,7 @@ ui <- dashboardPage(
   dashboardBody(
 
     fluidRow(
-      box(leafletOutput("flight_map", height = 500))
-    ),
-
-    fluidRow(
+      box(leafletOutput("flight_map", height = 500)),
       box(title = "Flights",
           DT::DTOutput("ListOfFlights")
           )
@@ -46,15 +46,24 @@ server <- function(input, output) {
     read_GPX(list.files(flightPathDir, full.names = TRUE)[flight_row()])
   })
 
+  aoi <- reactive({
+      aoi <- sf::st_bbox(flight()[["tracks"]]) |>
+        sf::st_as_sfc() |>
+        sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
+        sf::st_transform(sf::st_crs(zones)) |>
+        sf::st_bbox()})
+
+  zoi <-
+
   output$flight_map <- renderLeaflet({
     leaflet() |>
       addProviderTiles(provider = "Esri.WorldTopoMap") |>
       addPolylines(data = st_transform(flight()$tracks, "WGS84"), weight = 1, color = "black", dashArray = 4)
   })
 
-  map_proxy <- leafletProxy("flight_map")
 
-  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)), selection = list(mode = 'single', selected = 1L))
+  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)),
+                                       selection = list(mode = 'single', selected = 1L))
 }
 
 shinyApp(ui, server)

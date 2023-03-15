@@ -14,10 +14,12 @@ Imports:
     terra (>= 1.6.41),
     xml2,
     tools,
+    utils,
     DBI,
     data.table,
     parallel,
-    bcmaps
+    bcmaps,
+    bcdata
 License: Apache License (== 2)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

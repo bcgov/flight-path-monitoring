@@ -4,8 +4,6 @@
 
 This package provides an analysis of flight paths over legal habitat areas for tenure holders. It determines the time and distance spent in each habitat area.
 
-
-
 # Installation
 
 ## Requirements
@@ -19,101 +17,9 @@ remotes::install_github("bcgov/flight-path-monitoring")
 
 # Flight path analysis
 
-## Retrieving legal habitat areas
-
 ```r
 library(flight.path.monitoring)
-presaved <- "habitat_areas.rds"
 
-if (!file.exists(presaved)) {
-  
-  # Skeena - Mountaingoat winter habitat 
-  tmpdir <- file.path(tempdir(),"zipped")
-  unzip("./data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr.zip", exdir = tmpdir)
-  Skeena_mountaingoatwinterhab <- sf::st_read(tmpdir, drivers = "ESRI Shapefile", quiet = TRUE)
-  Skeena_mountaingoatwinterhab[["id"]] <- paste(
-    "Skeena-mountaingoatwinterhab",
-    Skeena_mountaingoatwinterhab[["OBJECTID"]],
-    sep = "."
-  )
-  # move id in first position, purely aesthetic
-  n <- ncol(Skeena_mountaingoatwinterhab)
-  Skeena_mountaingoatwinterhab <- Skeena_mountaingoatwinterhab[, c(n, 1L:(n-1L))]
-  unlink(tmpdir, recursive = TRUE)
-  
-  # Ungulate Winter Range- Approved
-  # bcdc_search("Ungulate Winter Range")
-  Ungulate_winterrange_approved <- bcdata::bcdc_get_record("712bd887-7763-4ed3-be46-cdaca5640cc1") |>
-    bcdata::bcdc_query_geodata() |>
-    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
-    bcdata::collect()
-  
-  # Ungulate Winter Range- Proposed
-  # bcdc_search("Ungulate Winter Range")
-  Ungulate_winterrange_proposed <- bcdata::bcdc_get_record("e5c2a2e3-70fc-49e3-9840-87212853e8a2") |>
-    bcdata::bcdc_query_geodata() |>
-    bcdata::filter(SPECIES_1 %in% c("M-ORAM", "M-RATA-01", "M-RATA-15")) |>
-    bcdata::collect()
-  
-  # Legal Planning Objectives - Current - Polygon
-  # bcdc_search("Legal Planning Objectives Polygon")
-  legal_habitat_areas <- bcdata::bcdc_get_record("2c02040c-d7c5-4960-8d04-dea01d6d3e9f") |>
-    bcdata::bcdc_query_geodata() |>
-    bcdata::filter(
-      STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan",
-      LEGAL_FEAT_OBJECTIVE == "Caribou Winter Habitat Zones"
-    ) |>
-    bcdata::collect()
-  
-  # Non Legal Planning Features - Current - Polygon
-  # bcdc_search("Non Legal Planning Features Polygon")
-  non_legal_habitat_areas <- bcdata::bcdc_get_record("5d859a89-f173-4006-82f9-16254de2c1fc") |>
-    bcdata::bcdc_query_geodata() |>
-    bcdata::filter(
-      (
-        STRGC_LAND_RSRCE_PLAN_NAME == "Dease-Liard Sustainable Resource Management Plan" &
-        NON_LEGAL_FEAT_OBJECTIVE == "High Value Mountain Ungulate Habitat"  
-      ) |
-      (
-        STRGC_LAND_RSRCE_PLAN_NAME == "Lakes District Land and Resource Management Plan" &
-        NON_LEGAL_FEAT_OBJECTIVE == "SRMZ3:Caribou Migration Corridor Sub-Zone" &
-        NON_LEGAL_FEAT_ATRB_2_VALUE %in% c("Caribou Migration Corridor - High", "Caribou Migration Corridor - Very High")
-      ) |
-      (
-        STRGC_LAND_RSRCE_PLAN_NAME == "Morice Land and Resource Management Plan" &
-        NON_LEGAL_FEAT_OBJECTIVE %in% c("Mountain Goat Habitat Areas", "Takla Caribou Winter Range", "Tweedsmuir Caribou:Calving Islands")
-      )
-    ) |>
-    bcdata::collect()
-  
-  habitat_areas <- rbind(
-   Skeena_mountaingoatwinterhab[,"id"],
-   Ungulate_winterrange_approved[,"id"],
-   Ungulate_winterrange_proposed[,"id"],
-   legal_habitat_areas[,"id"],
-   non_legal_habitat_areas[,"id"]
-  ) |> append_bbox_info()
-  
-  rm(
-   Skeena_mountaingoatwinterhab,
-   Ungulate_winterrange_approved,
-   Ungulate_winterrange_proposed,
-   legal_habitat_areas,
-   non_legal_habitat_areas
-  )
-  saveRDS(habitat_areas, presaved)
-
-} else {
-  
-  habitat_areas <- readRDS(presaved)
-  
-}
-```
-
-## Defining incursion zones buffer distances
-
-```r
-dist <- distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR")
 ```
 
 ## Performing the analysis
@@ -121,9 +27,7 @@ dist <- distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR")
 system.file("flight.tar.gz", package = "flight.path.monitoring") |>
   untar(exdir = tempdir())
 
-flight_analysis <-  file.path(tempdir(), "flight.gpx") |>
-  read_GPX() |>
-  process_flight(zones = habitat_areas, dist = dist)
+flight_analysis <- file.path(tempdir(), "flight.gpx") |> read_GPX() |> process_flight()
 ```
 
 Other parameters such as maximal elevation can also be provided. See `?process_flight` help page for details.

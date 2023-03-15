@@ -44,7 +44,7 @@ distances <- function(..., reflabel = "In UWR") {
 #' @param sf_obj A spatial feature object from which geometries can be extracted.
 #' @return A list of named buffers as spatial feature objects. Names recycled from `dist`.
 #' @export
-#'
+#' @rdname distances
 buffers <- function(sf_obj, dist) {
 
   # Make sure distances come from `distances`

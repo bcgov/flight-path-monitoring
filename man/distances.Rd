@@ -2,21 +2,32 @@
 % Please edit documentation in R/buffer.R
 \name{distances}
 \alias{distances}
+\alias{buffers}
 \title{Define buffer distances}
 \usage{
 distances(..., reflabel = "In UWR")
+
+buffers(sf_obj, dist)
 }
 \arguments{
 \item{...}{Named buffer distances. If unnamed, will use the distance as names.}
 
 \item{reflabel}{A character string. Reference geometries name from which the
 buffers are computed. Default to \verb{In UWR}.}
+
+\item{sf_obj}{A spatial feature object from which geometries can be extracted.}
+
+\item{dist}{A named integer vector. buffer distances as produced by \code{distances}.}
 }
 \value{
 A sorted named integer vectors.
+
+A list of named buffers as spatial feature objects. Names recycled from \code{dist}.
 }
 \description{
 Define buffer distances
+
+Compute buffers around geometries
 }
 \examples{
 distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")

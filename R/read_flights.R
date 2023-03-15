@@ -127,16 +127,18 @@ read_KML <- function(fpath) {
       as.POSIXlt(tz = "UTC", format = "%Y-%m-%dT%H:%M:%OS") |> # Parse text to timestamp
       as.POSIXct() # Convert from POSIX list to compact format
 
-    linestring_node |>
+    xyz_coords <- linestring_node |>
       xml2::xml_child("d1:coordinates") |> # Get LineString coordinates
       xml2::xml_text() |> # Extract text, it is just a big blob of text
       strsplit(" ", TRUE) |> # Split by space character to get individual "X,Y,Z"
       lapply(strsplit, split = ",") |> # Split by comma to get c("X","Y","Z")
       .subset2(1) |> # Extract first element, because of strsplit output format
-      do.call(rbind, args = _) |> # Bind the rows together into matrix
+      do.call(rbind, args = _) # Bind the rows together into matrix
+
+    xyz_coords[,1:2] |> # Remove Z dimension
       apply(2, as.numeric) |> # Convert from character to numeric values
       list() |> # Insert into a list to respect `sf::multilinestring` requirements
-      sf::st_multilinestring("XYZ") |> # Convert to multilinestring
+      sf::st_multilinestring("XY") |> # Convert to multilinestring
       sf::st_geometry() |> # Extract geometry
       sf::st_sf(name = name, time = time, geometry = _) |> # Create an sf object with the geometry
       sf::st_set_crs(4326) # Set CRS to 4326

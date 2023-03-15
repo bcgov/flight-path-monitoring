@@ -1,10 +1,11 @@
 #' Process flight data and produce summary table of time in zones
 #'
 #' @param flight Flight data obtained from subsetting results of `ingest_flights`.
-#' @param zones Geometries of incursion zones and telemetries.
-#' @param dist A named numeric vector of distances from `distances`.
+#' @param zones Geometries of incursion zones and telemetries. Default to `default_zones()`.
+#' @param dist A named numeric vector of distances from `distances`. Default to `default_dist()`.
 #' @param max_altitude Maximum altitude in meters for a track point to be considered.
-#' @param geom_out A logical. If TRUE, some geometries used for the analysis are returned. Defaults to TRUE.
+#' @param geom_out A logical. If TRUE, some geometries used for the analysis are returned.
+#' Defaults to TRUE.
 #' @param check_tiles Should the tiles that you already have in your cache be checked to see if
 #' they need updating? Default FALSE. If you are running the same code frequently and are confident
 #' the tiles haven't changed, setting this to FALSE will speed things up. For digital elevation
@@ -14,7 +15,8 @@
 #' @return A list with a summary table of time in zones and optional geometries.
 #' @export
 #'
-process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = TRUE, check_tiles = FALSE) {
+process_flight <- function(flight, zones = default_zones(), dist = default_dist(),
+                           max_altitude = 500, geom_out = TRUE, check_tiles = FALSE) {
 
   # Flight track points (contiguous duplicates combined)
   ftp <- flight[["track_points"]][, c("ele", "time", "track_seg_point_id")] |>
@@ -31,44 +33,57 @@ process_flight <- function(flight, zones, dist, max_altitude = 500, geom_out = T
   # Zones of interest
   zoi <- filter_on_bbox(aoi, zones)
 
-  if (nrow(zoi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
+  # Create result object
+  res <- empty_results(flight, dist)
+  if (isTRUE(geom_out)) {
+    res[["flight"]] <- flight[["tracks"]] |> sf::st_geometry()
+  }
+
+  if (nrow(zoi) == 0L) { return(res) } # No time to account for
 
   # Add buffers
   zoi <- buffers(zoi, dist)
 
+    # Append zone of interest to result
+  if (isTRUE(geom_out)) {
+    res[["zones"]] <- zoi |>
+      lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]]))
+  }
+
   # Points of interest
   poi <- compute_poi(ftp, zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
-  if (nrow(poi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
+  if (nrow(poi) == 0L) { return(res) } # No time to account for
 
   # Lines of interest
   loi <- compute_loi(poi, sf::st_crs(zoi[[1]]))
 
   # Record filtered loi
-  loi_filtered <- loi[which(loi[["filtered"]]),]
+  if (isTRUE(geom_out)) {
+    res[["segments"]][["filtered"]] <- loi[which(loi[["filtered"]]),] |>
+      sf::st_transform(crs = sf::st_crs(flight[["tracks"]]))
+  }
+
   # Keep loi with both endpoints not filtered
   loi <- loi[which(!loi[["filtered"]]),]
-  if (nrow(loi) == 0L) { return(empty_results(flight, dist)) } # No time to account for
+  if (nrow(loi) == 0L) { return(res) } # No time to account for
 
   # Compute time in each zone
   in_z <- time_in_zone(loi, zoi)
 
-  res <- list("Summary" = do.call(
-    data.table::data.table,
-    c(
-      list("Flight" = flight[["tracks"]][["name"]]),
-      in_z[["Time in zones"]]
-    )
-  ))
+  # Map to existing result
+  data.table::set(
+    x = res[["summary"]],
+    j = in_z[["Time in zones"]] |> names(),
+    value = in_z[["Time in zones"]]
+  )
 
+  # Add segments when `geom_out` is true.
   if (isTRUE(geom_out)) {
-    res <- c(res, list(
-      "flight" = flight[["tracks"]] |> sf::st_geometry(),
-      "segments" = c(
-        in_z[["Segments in zones"]] |> lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])),
-        list("filtered" = loi_filtered |> sf::st_transform(crs = sf::st_crs(flight[["tracks"]])))
-      ),
-      "zones" = zoi |> lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]]))
-    ))
+    res[["segments"]] = c(
+      in_z[["Segments in zones"]] |>
+        lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])),
+      res[["segments"]]
+    )
   }
 
   return(res)
@@ -99,7 +114,7 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
     which()
 
   # Add neighbor points, pmin/pmax to stay within valid points
-  pts_to_keep <- c(pmax(0L, pts_in_all - 1L), pts_in_all, pmin(pts_in_all + 1L,nrow(ftp))) |>
+  pts_to_keep <- c(pmax(1L, pts_in_all - 1L), pts_in_all, pmin(pts_in_all + 1L,nrow(ftp))) |>
     unique() |> sort() # Remove duplicates, sort indexes
 
   # Subset track points
@@ -169,17 +184,21 @@ compute_loi <- function(poi, crs) {
 #' @noRd
 #'
 empty_results <- function(flight, dist) {
-zero <- function(...) as.difftime(0, units = "secs")
-do.call(
-  data.table::data.table,
-  args = c(
-    list(
-      "Flight" = flight[["tracks"]][["name"]]
-    ),
-    lapply(dist, zero),
-    list(
-      "All" = zero()
+  zero <- function(...) as.difftime(0, units = "secs")
+  res <- list("summary" =
+    do.call(
+      data.table::data.table,
+      args = c(
+        list(
+          "Flight" = flight[["tracks"]][["name"]]
+        ),
+        lapply(dist, zero),
+        list(
+          "All" = zero()
+        )
+      )
     )
   )
-)
+  attr(res, "class") <- c("flightsummary", class(res))
+  return(res)
 }

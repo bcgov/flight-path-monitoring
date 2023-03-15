@@ -1,35 +1,118 @@
 ![Lifecycle:Experimental](https://img.shields.io/badge/Lifecycle-Experimental-339999)
 
-# Flight Path Monitoring Application
+# Flight Path Monitoring Package
 
-This is an opportunity to work with the Skeena Ecosystems team within the Ministry of Lands, Water, and Resource Stewardship. We are looking for a Python and R programmer to translate and optimize Python scrips to take Flightline data submitted by tenure holders and overlay it over legal habitat areas to determine the time and distance spent in each habitat area. The python code and flight data will be provided to the contractor, input habitat databases are available on the BC Data Catalogue.
+This package provides an analysis of flight paths over legal habitat areas for tenure holders. It determines the time and distance spent in each habitat area.
 
-1. Translate & optimize Python to R code to monitor Flightline data over wildlife habitat areas
-   - Detail the methodology laid out in the python scripts in plain English and use R language to re-create scripts
-2. Develop a spatial module that will cover BC and incorporate habitat layers (all available in package bcmaps)
-   - Input flight line data or pull data from TRACKS database (through API's; release date TBD)
-   - Input collar data or pull data from BC Telemetry database (through API's)
-   - Determine the best way to display outputs (table and maps) including time and distance spent in each habitat excursions zone
+# Installation
 
-The following resources will be provided to the contractor and are available on BC Data Catalogue.
+## Requirements
 
-# Boostao's proposed approach
+- R base version `4.2.0` or greater.
+- R package `terra` version `1.6.41` or greater.
 
-- Start by converting the Python script logic into R code functions. Open source R packages `sf` and `terra` will be used instead of the proprietary Arcpy Python package. The resulting code will have a smaller footprint, will be fully documented, and will run on a regular workstation. 
-- Build a Shiny application to process flight data and display relevant information. The application will most likely have a few interfaces. Notably an interactive a `leaflet` map and an editable data table. The end user will be able to either upload data to modify the application state or download data for further analysis.
-- Application will also handle the dynamic retrieval of data from the TRACKS database API and BC Telemetry database API. Static information like elevation model will be pulled at application startup from public sources or packaged with the application for better performances.
-- Provide helper scripts to help the Ecosystem team reproduce the necessary environment for the Shiny application on their machine. Portable and reproducible science is key in the R community.
-- For the `leaflet` map component, habitat layers will be overlaid on top of a simple base layer. Styling will be consistent with the BC Government colour scheme, but the Ecosystem team can request custom layers and variations to better suit their needs.
-- Offer continuous support to help your team absorb the created assets.
+```r
+remotes::install_github("bcgov/flight-path-monitoring")
+```
 
-# First draft delivery date
+# Flight path analysis
 
-`February 3rd, 2023`
+```r
+library(flight.path.monitoring)
 
-# Final Delivery date
+```
 
-`February 15th, 2023`
+## Performing the analysis
+```r
+system.file("flight.tar.gz", package = "flight.path.monitoring") |>
+  untar(exdir = tempdir())
 
-# Estimated workload
+flight_analysis <- file.path(tempdir(), "flight.gpx") |> read_GPX() |> process_flight()
+```
 
-`80 hours`
+Other parameters such as maximal elevation can also be provided. See `?process_flight` help page for details.
+
+## Visualising the analysis
+
+### Flight analysis summary
+```r
+print(flight_analysis)
+```
+
+```
+> print(flight_analysis)
+                  Flight        in_UWR          high      moderate           low           All
+1: Monday Morning Flight 30.88603 secs 552.8839 secs 1067.137 secs 4040.597 secs 5691.504 secs
+```
+
+### Plot the flight analysis
+```r
+library(ggplot2)
+
+ggplot() +
+  geom_sf(data = flight_analysis$zones$low, fill = "beige") +
+  geom_sf(data = flight_analysis$zones$moderate, fill = "yellow") +
+  geom_sf(data = flight_analysis$zones$high, fill = "orange") +
+  geom_sf(data = flight_analysis$zones$in_UWR, fill = "red") +
+  geom_sf(data = flight_analysis$flight |> sf::st_geometry(), colour = "lightgreen")+
+  geom_sf(data = flight_analysis$segments$in_UWR |> sf::st_geometry(), colour = "darkblue") +
+  geom_sf(data = flight_analysis$segments$high |> sf::st_geometry(), colour = "blue") +
+  geom_sf(data = flight_analysis$segments$moderate |> sf::st_geometry(), colour = "cornflowerblue") +
+  geom_sf(data = flight_analysis$segments$low |> sf::st_geometry(), colour = "skyblue") +
+  geom_sf(data = flight_analysis$segments$filtered |> sf::st_geometry(), colour = "deeppink")
+```
+![](./.github/assets/ggplot.png)
+
+```
+library(leaflet)
+
+leaflet() |>
+  addProviderTiles(provider = "Esri.WorldTopoMap") |>
+  addPolygons(data = flight_analysis$zones$in_UWR, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
+  addPolygons(data = flight_analysis$zones$high, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
+  addPolygons(data = flight_analysis$zones$moderate, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
+  addPolygons(data = flight_analysis$zones$low, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
+  addPolylines(data = flight_analysis$flight, weight = 1, color = "darkgreen", dashArray = 4) |>
+  addPolylines(data = flight_analysis$segments$in_UWR, weight = 2, color = "darkblue", opacity = 1) |>
+  addPolylines(data = flight_analysis$segments$high, weight = 2, color = "blue", opacity = 1) |>
+  addPolylines(data = flight_analysis$segments$moderate, weight = 2, color = "cornflowerblue", opacity = 1) |>
+  addPolylines(data = flight_analysis$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
+  addPolylines(data = flight_analysis$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
+```
+![](./.github/assets/leaflet.png)
+
+## Processing a folder of flights
+```r
+f <- list.files("./data-raw/Heli data", pattern = "gpx$|kml$", recursive = TRUE, full.names = TRUE)
+
+flights <- read_flights(f)
+
+flights_analysis <- lapply(
+  flights,
+  process_flight,
+  zones = habitat_areas,
+  dist = dist,
+  geom_out = FALSE
+) |>
+  lapply(`[[`, "summary") |>
+  data.table::rbindlist() |>
+  data.table::set(j = "filename", value = names(flights))
+  
+print(flights_analysis)  
+```
+
+```
+> flights_analysis
+                       Flight          in_UWR             high         moderate             low              All                       filename
+  1: Tuesday Afternoon Flight  28.869984 secs 11807.83021 secs 121975.7258 secs 1494.63335 secs 135307.0594 secs                      01-Feb-22
+  2:   Tuesday Morning Flight   0.000000 secs  3270.91282 secs    161.5443 secs  177.57013 secs   3610.0273 secs                      01-Mar-22
+  3: Wednesday Morning Flight   3.394391 secs  3781.81731 secs   5164.4627 secs 2023.00128 secs  10972.6757 secs                      02-Mar-22
+  4:  Thursday Morning Flight  62.918563 secs  4329.35738 secs   6884.8993 secs 2367.56422 secs  13644.7394 secs                      03-Mar-22
+  5:  Saturday Morning Flight 164.694805 secs  7999.55302 secs   3262.6721 secs 4119.25519 secs  15546.1752 secs                      05-Feb-22
+ ---                                                                                                                                           
+246:    Sunday Morning Flight  57.035988 secs   699.97372 secs   1101.1453 secs 3375.13108 secs   5233.2861 secs 20220417-151457-0029060-141724
+247:   Tuesday Morning Flight   0.000000 secs    59.38758 secs    595.4419 secs 6898.46269 secs   7553.2921 secs 20220419-151732-0015173-141724
+248: Wednesday Morning Flight  11.764096 secs   320.49865 secs   5114.8330 secs 1179.95549 secs   6627.0512 secs 20220420-152042-0030454-141724
+249:  Thursday Morning Flight   0.000000 secs    21.07283 secs    198.5443 secs  352.59609 secs    572.2132 secs 20220421-152429-0030741-141724
+250:    Friday Morning Flight   0.000000 secs    35.99603 secs   1114.6335 secs   91.78273 secs   1242.4123 secs 20220422-155759-0006006-141724
+```

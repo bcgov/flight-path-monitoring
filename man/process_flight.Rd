@@ -6,8 +6,8 @@
 \usage{
 process_flight(
   flight,
-  zones,
-  dist,
+  zones = default_zones(),
+  dist = default_dist(),
   max_altitude = 500,
   geom_out = TRUE,
   check_tiles = FALSE
@@ -16,13 +16,14 @@ process_flight(
 \arguments{
 \item{flight}{Flight data obtained from subsetting results of \code{ingest_flights}.}
 
-\item{zones}{Geometries of incursion zones and telemetries.}
+\item{zones}{Geometries of incursion zones and telemetries. Default to \code{default_zones()}.}
 
-\item{dist}{A named numeric vector of distances from \code{distances}.}
+\item{dist}{A named numeric vector of distances from \code{distances}. Default to \code{default_dist()}.}
 
 \item{max_altitude}{Maximum altitude in meters for a track point to be considered.}
 
-\item{geom_out}{A logical. If TRUE, some geometries used for the analysis are returned. Defaults to TRUE.}
+\item{geom_out}{A logical. If TRUE, some geometries used for the analysis are returned.
+Defaults to TRUE.}
 
 \item{check_tiles}{Should the tiles that you already have in your cache be checked to see if
 they need updating? Default FALSE. If you are running the same code frequently and are confident

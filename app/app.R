@@ -5,8 +5,11 @@ library(flight.path.monitoring)
 library(leaflet)
 
 flightPathDir <- file.path("data-raw", "Heli data", "NEH", "2021")
-#habitat_areas <- readRDS(paste0(ressources_path, "/habitat_areas.rds"))
+habitat_areas <- sf::st_read("data-raw/Habitat/Skeena-mountaingoatwinterhab.shp.ALGORAB.20784.25740.sr/")
 #wildlife_telemetry <- readRDS(paste0(ressources_path, "/wildlife_telemetry.rds"))
+
+incursion_zones_distance <- distances(High = 1500, Moderate = 1000, Low = 500, reflabel = "In UWR")
+
 
 
 ui <- dashboardPage(
@@ -46,20 +49,37 @@ server <- function(input, output) {
     read_GPX(list.files(flightPathDir, full.names = TRUE)[flight_row()])
   })
 
-  aoi <- reactive({
-      aoi <- sf::st_bbox(flight()[["tracks"]]) |>
-        sf::st_as_sfc() |>
-        sf::st_buffer(do.call(max,dist) + units::set_units(50L, m)) |>
-        sf::st_transform(sf::st_crs(zones)) |>
-        sf::st_bbox()})
-
-  zoi <-
+  processed_flight <- reactive({
+    process_flight(flight = flight(),
+                   zones = habitat_areas,
+                   dist = distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR"),
+                   geom_out = TRUE)
+    })
 
   output$flight_map <- renderLeaflet({
     leaflet() |>
       addProviderTiles(provider = "Esri.WorldTopoMap") |>
-      addPolylines(data = st_transform(flight()$tracks, "WGS84"), weight = 1, color = "black", dashArray = 4)
+     # addPolygons(data = processed_flight()[["zones"]][["in_UWR"]], color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
+    #  addPolygons(data = processed_flight()[["zones"]][["high"]], color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
+     # addPolygons(data = processed_flight()[["zones"]][["moderate"]], color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
+    #  addPolygons(data = processed_flight()[["zones"]][["low"]], color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
+      addPolylines(data = st_transform(processed_flight()[["flight"]], "WGS84"), weight = 1, color = "darkgreen", dashArray = 4)
+     # addPolylines(data = processed_flight()[["segments"]][["in_UWR"]], weight = 2, color = "darkblue", opacity = 1) |>
+    #  addPolylines(data = processed_flight()[["segments"]][["high"]], weight = 2, color = "blue", opacity = 1) |>
+    #  addPolylines(data = processed_flight()[["segments"]][["moderate"]], weight = 2, color = "cornflowerblue", opacity = 1) |>
+    #  addPolylines(data = processed_flight()[["segments"]][["low"]], weight = 2, color = "skyblue", opacity = 1) |>
+    #  addPolylines(data = processed_flight()[["segments"]][["filtered"]], weight = 2, color = "deeppink", opacity = 1)
   })
+
+  # output$flight_map <- renderLeaflet({
+  #   leaflet() |>
+  #     addProviderTiles(provider = "Esri.WorldTopoMap") |>
+  #     addPolylines(data = st_transform(flight()$tracks, "WGS84"), weight = 1, color = "black", dashArray = 4) |>
+  #     addPolygons(data = st_transform(zoi(), "WGS84"), color = "white", opacity = 1 , weight  = 1, fillColor = "#db0f27", fillOpacity = 0.7) |>
+  #     addPolygons(data = st_transform(incursions_zoi()[[1]], "WGS84"), color = "white", opacity = 1 , weight  = 1, fillColor = "#d31a38", fillOpacity = 0.4) |>
+  #     addPolygons(data = st_transform(incursions_zoi()[[2]], "WGS84"), color = "white", opacity = 1 , weight  = 1, fillColor = "#d31a38", fillOpacity = 0.2) |>
+  #     addPolygons(data = st_transform(incursions_zoi()[[3]], "WGS84"), color = "white", opacity = 1 , weight  = 1, fillColor =  "#d31a38",  fillOpacity = 0.1)
+  #   })
 
 
   output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)),

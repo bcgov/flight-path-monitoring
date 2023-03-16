@@ -4,7 +4,7 @@
 \alias{time_in_zone}
 \title{Compute time spent in zones}
 \usage{
-time_in_zone(sf_obj, zones, exclude = c("Buffers", "All"))
+time_in_zone(sf_obj, zones, exclude = c("buffers", "all"))
 }
 \arguments{
 \item{sf_obj}{A spatial feature object with \code{LINESTRING} geometries and field \code{time_deltas}.}
@@ -20,7 +20,7 @@ A list with \code{LINESTRING} segments and time spent in each zone.
 Compute time spent in zones
 }
 \details{
-Also return an \code{All}
+Also return an \code{all}
 element which is the sum of of time spent in each zones. It is not the time spent in a union
 of all zones geometries. If the zones overlap, this information would be important to
 communicate to avoid confusion.

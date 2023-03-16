@@ -27,7 +27,7 @@ library(flight.path.monitoring)
 system.file("flight.tar.gz", package = "flight.path.monitoring") |>
   untar(exdir = tempdir())
 
-flight_analysis <- file.path(tempdir(), "flight.gpx") |> read_GPX() |> process_flight()
+analysis <- file.path(tempdir(), "flight.gpx") |> read_flight() |> process_flight()
 ```
 
 Other parameters such as maximal elevation can also be provided. See `?process_flight` help page for details.
@@ -36,13 +36,13 @@ Other parameters such as maximal elevation can also be provided. See `?process_f
 
 ### Flight analysis summary
 ```r
-print(flight_analysis)
+analysis
 ```
 
 ```
-> print(flight_analysis)
-                  Flight        in_UWR          high      moderate           low           All
-1: Monday Morning Flight 30.88603 secs 552.8839 secs 1067.137 secs 4040.597 secs 5691.504 secs
+> analysis
+   flight_id                  name        in_uwr          high      moderate           low           all filename
+1:         1 Monday Morning Flight 30.88603 secs 552.8839 secs 1067.137 secs 4040.597 secs 5691.504 secs   flight
 ```
 
 ### Plot the flight analysis
@@ -50,16 +50,16 @@ print(flight_analysis)
 library(ggplot2)
 
 ggplot() +
-  geom_sf(data = flight_analysis$zones$low, fill = "beige") +
-  geom_sf(data = flight_analysis$zones$moderate, fill = "yellow") +
-  geom_sf(data = flight_analysis$zones$high, fill = "orange") +
-  geom_sf(data = flight_analysis$zones$in_UWR, fill = "red") +
-  geom_sf(data = flight_analysis$flight |> sf::st_geometry(), colour = "lightgreen")+
-  geom_sf(data = flight_analysis$segments$in_UWR |> sf::st_geometry(), colour = "darkblue") +
-  geom_sf(data = flight_analysis$segments$high |> sf::st_geometry(), colour = "blue") +
-  geom_sf(data = flight_analysis$segments$moderate |> sf::st_geometry(), colour = "cornflowerblue") +
-  geom_sf(data = flight_analysis$segments$low |> sf::st_geometry(), colour = "skyblue") +
-  geom_sf(data = flight_analysis$segments$filtered |> sf::st_geometry(), colour = "deeppink")
+  geom_sf(data = analysis$zones$low, fill = "beige") +
+  geom_sf(data = analysis$zones$moderate, fill = "yellow") +
+  geom_sf(data = analysis$zones$high, fill = "orange") +
+  geom_sf(data = analysis$zones$in_uwr, fill = "red") +
+  geom_sf(data = analysis$flight |> sf::st_geometry(), colour = "lightgreen")+
+  geom_sf(data = analysis$segments$in_uwr |> sf::st_geometry(), colour = "darkblue") +
+  geom_sf(data = analysis$segments$high |> sf::st_geometry(), colour = "blue") +
+  geom_sf(data = analysis$segments$moderate |> sf::st_geometry(), colour = "cornflowerblue") +
+  geom_sf(data = analysis$segments$low |> sf::st_geometry(), colour = "skyblue") +
+  geom_sf(data = analysis$segments$filtered |> sf::st_geometry(), colour = "deeppink")
 ```
 ![](./.github/assets/ggplot.png)
 
@@ -68,16 +68,16 @@ library(leaflet)
 
 leaflet() |>
   addProviderTiles(provider = "Esri.WorldTopoMap") |>
-  addPolygons(data = flight_analysis$zones$in_UWR, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
-  addPolygons(data = flight_analysis$zones$high, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
-  addPolygons(data = flight_analysis$zones$moderate, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
-  addPolygons(data = flight_analysis$zones$low, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
-  addPolylines(data = flight_analysis$flight, weight = 1, color = "darkgreen", dashArray = 4) |>
-  addPolylines(data = flight_analysis$segments$in_UWR, weight = 2, color = "darkblue", opacity = 1) |>
-  addPolylines(data = flight_analysis$segments$high, weight = 2, color = "blue", opacity = 1) |>
-  addPolylines(data = flight_analysis$segments$moderate, weight = 2, color = "cornflowerblue", opacity = 1) |>
-  addPolylines(data = flight_analysis$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
-  addPolylines(data = flight_analysis$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
+  addPolygons(data = analysis$zones$in_uwr, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
+  addPolygons(data = analysis$zones$high, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
+  addPolygons(data = analysis$zones$moderate, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
+  addPolygons(data = analysis$zones$low, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
+  addPolylines(data = analysis$flight, weight = 1, color = "darkgreen", dashArray = 4) |>
+  addPolylines(data = analysis$segments$in_uwr, weight = 2, color = "darkblue", opacity = 1) |>
+  addPolylines(data = analysis$segments$high, weight = 2, color = "blue", opacity = 1) |>
+  addPolylines(data = analysis$segments$moderate, weight = 2, color = "cornflowerblue", opacity = 1) |>
+  addPolylines(data = analysis$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
+  addPolylines(data = analysis$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
 ```
 ![](./.github/assets/leaflet.png)
 
@@ -85,24 +85,13 @@ leaflet() |>
 ```r
 f <- list.files("./data-raw/Heli data", pattern = "gpx$|kml$", recursive = TRUE, full.names = TRUE)
 
-flights <- read_flights(f)
-
-flights_analysis <- lapply(
-  flights,
-  process_flight,
-  zones = habitat_areas,
-  dist = dist,
-  geom_out = FALSE
-) |>
-  lapply(`[[`, "summary") |>
-  data.table::rbindlist() |>
-  data.table::set(j = "filename", value = names(flights))
+analysis <- f |> read_flight() |> process_flight(geom_out = FALSE)
   
-print(flights_analysis)  
+print(analysis)  
 ```
 
 ```
-> flights_analysis
+> analysis
                        Flight          in_UWR             high         moderate             low              All                       filename
   1: Tuesday Afternoon Flight  28.869984 secs 11807.83021 secs 121975.7258 secs 1494.63335 secs 135307.0594 secs                      01-Feb-22
   2:   Tuesday Morning Flight   0.000000 secs  3270.91282 secs    161.5443 secs  177.57013 secs   3610.0273 secs                      01-Mar-22

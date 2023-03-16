@@ -1,6 +1,6 @@
 #' Process flight data and produce summary table of time in zones
 #'
-#' @param flight Flight data obtained from subsetting results of `ingest_flights`.
+#' @param flight Flight data obtained from `read_flight`.
 #' @param zones Geometries of incursion zones and telemetries. Default to `default_zones()`.
 #' @param dist A named numeric vector of distances from `distances`. Default to `default_dist()`.
 #' @param max_altitude Maximum altitude in meters for a track point to be considered.
@@ -17,6 +17,37 @@
 #'
 process_flight <- function(flight, zones = default_zones(), dist = default_dist(),
                            max_altitude = 500, geom_out = TRUE, check_tiles = FALSE) {
+
+  # Make sure flight comes from `read_flight`
+  stopifnot(isTRUE(attr(flight, "generator") == "read_flight"))
+
+  # Process all flights and combine
+  lapply(
+    seq_len(length(flight)),
+    \(x) {
+      process_one(
+        flight[[x]],
+        zones = zones,
+        dist = dist,
+        max_altitude = max_altitude,
+        geom_out = geom_out,
+        check_tiles = check_tiles,
+        flight_id = x
+      )
+    }
+  ) |>
+    combine_res(flightname = names(flight), geom_out)
+
+}
+
+#' Process a single flight
+#' @rdname process_flight
+#' @param flight_id An integer. Flight id.
+process_one <- function(flight, zones = default_zones(), dist = default_dist(),
+                        max_altitude = 500, geom_out = TRUE, check_tiles = FALSE, flight_id = 1L) {
+
+  # Set default flight_id for processing a single flight
+  flight[["tracks"]][["flight_id"]] <- flight_id
 
   # Flight track points (contiguous duplicates combined)
   ftp <- flight[["track_points"]][, c("ele", "time", "track_seg_point_id")] |>
@@ -36,7 +67,7 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
   # Create result object
   res <- empty_results(flight, dist)
   if (isTRUE(geom_out)) {
-    res[["flight"]] <- flight[["tracks"]] |> sf::st_geometry()
+    res[["flight"]] <- flight[["tracks"]]
   }
 
   if (nrow(zoi) == 0L) { return(res) } # No time to account for
@@ -47,7 +78,12 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
     # Append zone of interest to result
   if (isTRUE(geom_out)) {
     res[["zones"]] <- zoi |>
-      lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]]))
+      lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])) |>
+      lapply(sf::st_as_sf) |>
+      lapply(FUN = \(x) {
+        x[["flight_id"]] <- flight_id
+        return(x)
+      })
   }
 
   # Points of interest
@@ -55,7 +91,7 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
   if (nrow(poi) == 0L) { return(res) } # No time to account for
 
   # Lines of interest
-  loi <- compute_loi(poi, sf::st_crs(zoi[[1]]))
+  loi <- compute_loi(poi, sf::st_crs(zoi[[1]]), flight_id)
 
   # Record filtered loi
   if (isTRUE(geom_out)) {
@@ -73,14 +109,14 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
   # Map to existing result
   data.table::set(
     x = res[["summary"]],
-    j = in_z[["Time in zones"]] |> names(),
-    value = in_z[["Time in zones"]]
+    j = in_z[["time_in_zones"]] |> names(),
+    value = in_z[["time_in_zones"]]
   )
 
   # Add segments when `geom_out` is true.
   if (isTRUE(geom_out)) {
     res[["segments"]] = c(
-      in_z[["Segments in zones"]] |>
+      in_z[["segments_in_zones"]] |>
         lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])),
       res[["segments"]]
     )
@@ -101,16 +137,16 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
 
   # Transform points
   ftp_crs <- ftp |>
-    sf::st_transform(crs = sf::st_crs(iz[["All"]]))
+    sf::st_transform(crs = sf::st_crs(iz[["all"]]))
 
   # Points within area of interest + buffers
   pts_in_all <- ftp_crs |>
-    sf::st_intersects(iz[["All"]], sparse = FALSE) |>
+    sf::st_intersects(iz[["all"]], sparse = FALSE) |>
     which() # Extract index
 
   # Get the points in the buffers zone
   pts_in_buffer <- ftp_crs |>
-    sf::st_intersects(iz[["Buffers"]], sparse = FALSE) |>
+    sf::st_intersects(iz[["buffers"]], sparse = FALSE) |>
     which()
 
   # Add neighbor points, pmin/pmax to stay within valid points
@@ -135,7 +171,7 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
 #' To reduce the size of the `process_flight` function
 #' @noRd
 #'
-compute_loi <- function(poi, crs) {
+compute_loi <- function(poi, crs, flight_id) {
 
   # Transform points of interest to LINESTRING of interest
   # CRS transform is done after the union to avoid extra
@@ -169,6 +205,9 @@ compute_loi <- function(poi, crs) {
     units = "secs"
   )
 
+  # Add flight_id
+  loi[["flight_id"]] <- flight_id
+
   # Keep line of interest with both endpoints not flagged as outside the zones
   loi <- loi[which(!loi[["outside"]]),]
 
@@ -190,15 +229,66 @@ empty_results <- function(flight, dist) {
       data.table::data.table,
       args = c(
         list(
-          "Flight" = flight[["tracks"]][["name"]]
+          "flight_id" = flight[["tracks"]][["flight_id"]],
+          "name" = flight[["tracks"]][["name"]]
         ),
         lapply(dist, zero),
         list(
-          "All" = zero()
+          "all" = zero()
         )
       )
     )
   )
-  attr(res, "class") <- c("flightsummary", class(res))
   return(res)
+}
+
+#' Combine results of multiple process_one together
+#' @noRd
+combine_res <- function(res, flightname, geom_out) {
+
+  # Combine list
+  combined <- list()
+
+  # Combine summary
+  combined[["summary"]] <- res |>
+    lapply(`[[`, "summary") |>
+    data.table::rbindlist() |>
+    data.table::set(j = "filename", value = flightname)
+
+  # Combine others
+  if (isTRUE(geom_out)) {
+
+    # First level deep geometries
+    nmlvl1 <- lapply(res, names) |> unlist() |> unique() |> sort()
+
+    for (nm in nmlvl1) {
+
+      x <- lapply(res, `[[`, nm)
+
+      if (nm == "flight") {
+
+        combined[[nm]] <- do.call(rbind, args = x)
+
+      } else if (!nm %in% "summary") {
+
+        # Second level deep geometries
+        nmlvl2 <- lapply(x, names) |> unlist() |> unique() |> sort()
+
+        for (nm2 in nmlvl2) {
+
+          combined[[nm]][[nm2]] <- lapply(x, `[[`, nm2) |>
+            do.call(rbind, args = _)
+
+        }
+
+      }
+
+    }
+
+  }
+
+  attr(combined, "class") <- c("flightanalysis", class(combined))
+
+  return(combined)
+
 }

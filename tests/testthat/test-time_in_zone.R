@@ -19,13 +19,13 @@ test_that("Time in zone returns errors when expected and computes the time spent
   res <- time_in_zone(sf_obj, zones)
 
   # Results checks
-  expect_equal(c(names(zones), "All"), names(res[["Time in zones"]]))
-  expect_equal(names(zones), names(res[["Segments in zones"]]))
-  expect_equal(res[["Segments in zones"]][["2"]], sf::st_intersection(sf_obj, zones[["2"]]))
-  expect_equal(res[["Segments in zones"]][["4"]], sf::st_intersection(sf_obj, zones[["4"]]))
-  expect_equal(res[["Segments in zones"]][["6"]], sf::st_intersection(sf_obj, zones[["6"]]))
-  expect_equal(res[["Segments in zones"]][["8"]], sf::st_intersection(sf_obj, zones[["8"]]))
-  expect_equal(as.integer(res[["Time in zones"]]), c(1:4,10)*2)
+  expect_equal(c(names(zones), "all"), names(res[["time_in_zones"]]))
+  expect_equal(names(zones), names(res[["segments_in_zones"]]))
+  expect_equal(res[["segments_in_zones"]][["2"]], sf::st_intersection(sf_obj, zones[["2"]]))
+  expect_equal(res[["segments_in_zones"]][["4"]], sf::st_intersection(sf_obj, zones[["4"]]))
+  expect_equal(res[["segments_in_zones"]][["6"]], sf::st_intersection(sf_obj, zones[["6"]]))
+  expect_equal(res[["segments_in_zones"]][["8"]], sf::st_intersection(sf_obj, zones[["8"]]))
+  expect_equal(as.integer(res[["time_in_zones"]]), c(1:4,10)*2)
 
   # Empty checks
   sf_obj_empty <- sf::st_linestring() |> sf::st_sfc() |> sf::st_as_sf()

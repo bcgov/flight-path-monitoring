@@ -2,7 +2,7 @@ test_that("Flight can be read in both format and have the same elements", {
 
   dsn <- list.files(test_path("files"), full.names = TRUE)
 
-  expect_warning(flights <- read_flights(dsn), "File extension not supported")
+  expect_warning(flights <- read_flight(dsn), "File extension not supported")
 
   expect_true(all(c("tracks", "track_points") %in% names(flights[["gpx_flight"]])))
   expect_true(all(c("tracks", "track_points") %in% names(flights[["kml_flight"]])))

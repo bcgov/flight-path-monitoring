@@ -10,7 +10,7 @@ cores <- function() {
 #' @param ... further arguments passed to or from other methods.
 #' @export
 #'
-print.flightsummary <- function(x, ...) {
+print.flightanalysis <- function(x, ...) {
   print(x[["summary"]])
 }
 
@@ -22,6 +22,6 @@ print.flightsummary <- function(x, ...) {
 # #' @param backend A character string. Either `leaflet` or `ggplot2`.
 # #' @export
 # #'
-# plot.flightsummary <- function(x, y, ..., backend = c("leaflet", "ggplot2")) {
+# plot.flightanalysis <- function(x, y, ..., backend = c("leaflet", "ggplot2")) {
 #
 # }

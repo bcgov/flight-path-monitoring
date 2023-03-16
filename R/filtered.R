@@ -9,7 +9,6 @@
 #' the tiles haven't changed, setting this to FALSE will speed things up. For digital elevation
 #' model from `bcmaps::cded`.
 #' @import terra sf
-#' @importFrom parallel mclapply detectCores
 #' @importFrom bcmaps cded
 #' @return A logical vector.
 #'
@@ -72,9 +71,25 @@ filtered <- function(sf_obj, zone, aoi, max_dist, max_altitude, check_tiles = FA
   # buffer distance should not count in the viewshed analysis
   refrange <- coords |> terra::vect() |> terra::buffer(max_dist)
 
+  # Wrap on Windows
+  if (winos()) {
+    dem <- dem |> terra::wrap()
+    refrange <- refrange |> terra::wrap()
+    refrast <- refrast |> terra::wrap()
+    unwrapper <- function() {
+      if (inherits(dem, "PackedSpatRaster")) { dem <<- terra::unwrap(dem)}
+      if (inherits(refrast, "PackedSpatRaster")) { refrast <<- terra::unwrap(refrast)}
+      if (inherits(refrange, "PackedSpatVector")) { refrange <<- terra::unwrap(refrange)}
+    }
+  } else {
+    unwrapper <- function() {}
+  }
+
   # This function checks if a flight point can see in a reference zone
   # within the max distance
   is_point_masked <- function(x) {
+
+    unwrapper()
 
     # Crop area to reduce number of cells needed to compute viewshed
     dem_cropped <- terra::crop(dem, refrange[x], mask = TRUE, snap = "out")
@@ -94,12 +109,11 @@ filtered <- function(sf_obj, zone, aoi, max_dist, max_altitude, check_tiles = FA
 
   }
 
-  # Compute for all points (in parallel on unix)
+  # Compute for all points
   terrain_masked <- logical(nrow(sf_obj))
-  terrain_masked[idx] <- parallel::mclapply(
+  terrain_masked[idx] <- parlapply()(
     X = seq_len(length(idx)),
-    FUN = is_point_masked,
-    mc.cores = cores()
+    FUN = is_point_masked
   ) |> unlist()
 
   res <- terrain_masked | above_max_altitude

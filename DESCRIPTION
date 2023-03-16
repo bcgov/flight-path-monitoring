@@ -17,6 +17,9 @@ Imports:
     utils,
     DBI,
     data.table,
+    future,
+    future.apply,
+    progressr,
     parallel,
     bcmaps,
     bcdata

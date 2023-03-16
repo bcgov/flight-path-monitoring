@@ -1,5 +1,6 @@
 test_that("Flight can be read in both format and have the same elements", {
 
+  options("flight.path.monitoring.use.parallel" = FALSE)
   dsn <- list.files(test_path("files"), full.names = TRUE)
 
   expect_warning(flights <- read_flight(dsn), "File extension not supported")

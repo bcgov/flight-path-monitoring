@@ -27,8 +27,7 @@ time_in_zone <- function(sf_obj, zones, exclude = c("buffers", "all")) {
   sf::st_agr(sf_obj) <- factor("constant", levels(sf::st_agr(sf_obj)))
 
   # Compute intersection of LINESTRING geometries and zones
-  inter <- parallel::mclapply(
-    mc.cores = cores(),
+  inter <- parlapply()(
     zones[!names(zones) %in% exclude],
     function(z) {
       sf::st_intersection(sf_obj, z)

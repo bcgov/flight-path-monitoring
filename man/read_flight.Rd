@@ -2,15 +2,12 @@
 % Please edit documentation in R/read_flight.R
 \name{read_flight}
 \alias{read_flight}
-\alias{read_flight_file}
 \alias{read_GPX}
 \alias{read_KML}
 \alias{read_flight_db}
 \title{Ingest flights data source}
 \usage{
 read_flight(dsn, query = NULL)
-
-read_flight_file(fpath)
 
 read_GPX(fpath)
 
@@ -24,15 +21,13 @@ a database. When a connection is used, it needs a query to retrieve flight track
 
 \item{query}{SQL query to select records.}
 
-\item{fpath}{A file path.}
+\item{fpath}{File path.}
 }
 \value{
 A list of flights each represented by a list of spatial feature objects
 }
 \description{
 Ingest flights data source
-
-Read a flight file
 
 Read a GPX file into a list of simple feature objects
 

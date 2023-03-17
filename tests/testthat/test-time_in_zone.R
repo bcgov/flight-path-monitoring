@@ -15,7 +15,7 @@ test_that("Time in zone returns errors when expected and computes the time spent
   sf_obj[["full_length"]] <- sf::st_length(sf_obj)
   sf::st_agr(sf_obj) <- factor("constant", levels(sf::st_agr(sf_obj)))
 
-  options("flight.path.monitoring.maxcores" = 1)
+  options("flight.path.monitoring.use.parallel" = FALSE)
   res <- time_in_zone(sf_obj, zones)
 
   # Results checks

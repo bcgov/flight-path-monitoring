@@ -21,6 +21,9 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
   # Make sure flight comes from `read_flight`
   stopifnot(isTRUE(attr(flight, "generator") == "read_flight"))
 
+  # Progress on Windows only
+  p <- progressr::progressor(length(flight))
+
   # Process all flights and combine
   lapply(
     seq_len(length(flight)),
@@ -34,6 +37,7 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
         check_tiles = check_tiles,
         flight_id = x
       )
+      p(sprintf("Flight analysed : [%s]", x))
     }
   ) |>
     combine_res(flightname = names(flight), geom_out)

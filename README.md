@@ -87,7 +87,7 @@ f <- list.files("./data-raw/Heli data", pattern = "gpx$|kml$", recursive = TRUE,
 
 analysis <- f |> read_flight() |> process_flight(geom_out = FALSE)
   
-print(analysis)  
+analysis
 ```
 
 ```
@@ -104,4 +104,14 @@ print(analysis)
 248: Wednesday Morning Flight  11.764096 secs   320.49865 secs   5114.8330 secs 1179.95549 secs   6627.0512 secs 20220420-152042-0030454-141724
 249:  Thursday Morning Flight   0.000000 secs    21.07283 secs    198.5443 secs  352.59609 secs    572.2132 secs 20220421-152429-0030741-141724
 250:    Friday Morning Flight   0.000000 secs    35.99603 secs   1114.6335 secs   91.78273 secs   1242.4123 secs 20220422-155759-0006006-141724
+```
+
+## Progress report (Windows or non-parallel processing)
+
+On Windows OS or when `options("flight.path.monitoring.use.parallel" = FALSE)`, both `read_flight` and `process_flight` can report progress using the [`progressr`](https://github.com/HenrikBengtsson/progressr) package framework.
+
+```r
+library(progressr)
+with_progress(fligths <- sample(f, 10) |> read_flight())
+with_progress(analysis <- fligths |> process_flight())
 ```

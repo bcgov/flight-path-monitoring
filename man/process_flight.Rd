@@ -2,6 +2,7 @@
 % Please edit documentation in R/process_flight.R
 \name{process_flight}
 \alias{process_flight}
+\alias{process_one}
 \title{Process flight data and produce summary table of time in zones}
 \usage{
 process_flight(
@@ -12,9 +13,19 @@ process_flight(
   geom_out = TRUE,
   check_tiles = FALSE
 )
+
+process_one(
+  flight,
+  zones = default_zones(),
+  dist = default_dist(),
+  max_altitude = 500,
+  geom_out = TRUE,
+  check_tiles = FALSE,
+  flight_id = 1L
+)
 }
 \arguments{
-\item{flight}{Flight data obtained from subsetting results of \code{ingest_flights}.}
+\item{flight}{Flight data obtained from \code{read_flight}.}
 
 \item{zones}{Geometries of incursion zones and telemetries. Default to \code{default_zones()}.}
 
@@ -29,10 +40,14 @@ Defaults to TRUE.}
 they need updating? Default FALSE. If you are running the same code frequently and are confident
 the tiles haven't changed, setting this to FALSE will speed things up. For digital elevation
 model from \code{bcmaps::cded}.}
+
+\item{flight_id}{An integer. Flight id.}
 }
 \value{
 A list with a summary table of time in zones and optional geometries.
 }
 \description{
 Process flight data and produce summary table of time in zones
+
+Process a single flight
 }

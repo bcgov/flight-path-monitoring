@@ -5,67 +5,67 @@
 #' @param query SQL query to select records.
 #' @return A list of flights each represented by a list of spatial feature objects
 #' @importFrom tools file_path_sans_ext
+#' @importFrom progressr progressor
 #' @export
 #'
-read_flights <- function(dsn, query = NULL) {
+read_flight <- function(dsn, query = NULL) {
 
   # Character vector
   if (inherits(dsn, "character")) {
 
     dsn <- setNames(dsn, basename(dsn) |> tools::file_path_sans_ext())
+    p <- progressr::progressor(length(dsn))
 
-    return(lapply(dsn, read_flight_file))
+    read_flight_file <- function(fpath) {
+
+      on.exit(p(sprintf("File processed : [%s]", fpath)), add = TRUE)
+
+      if (!file.exists(fpath)) {
+        warning("File does not exist : [", fpath, "]")
+        return(NULL)
+      }
+
+      ext <- tools::file_ext(fpath) |> tolower()
+
+      if (ext == "gpx") {
+
+        # GPX file
+        return(read_GPX(fpath))
+
+      } else if (ext == "kml") {
+
+        # KML file
+        return(read_KML(fpath))
+
+      } else {
+
+        warning("File extension not supported : [", fpath, "] [ext: ", ext, "]")
+        return(NULL)
+
+      }
+
+    }
+
+    res <- parlapply()(dsn, read_flight_file)
 
   } else if (inherits(dsn, "DBIConnection")) {
 
     stopifnot(!is.null(query))
-
-    return(read_flight_db(dsn, query))
-
-  }
-
-}
-
-#' Read a flight file
-#'
-#' @param fpath A file path.
-#' @importFrom tools file_ext
-#' @rdname read_flights
-#' @export
-#'
-read_flight_file <- function(fpath) {
-
-  if (!file.exists(fpath)) {
-    warning("File does not exist : [", fpath, "]")
-    return(NULL)
-  }
-
-  ext <- tools::file_ext(fpath) |> tolower()
-
-  if (ext == "gpx") {
-
-    # GPX file
-    return(read_GPX(fpath))
-
-  } else if (ext == "kml") {
-
-    # KML file
-    return(read_KML(fpath))
-
-  } else {
-
-    warning("File extension not supported : [", fpath, "] [ext: ", ext, "]")
-    return(NULL)
+    res <- read_flight_db(dsn, query)
 
   }
+
+  attr(res, "generator") <- "read_flight"
+
+  return(res)
 
 }
 
 #' Read a GPX file into a list of simple feature objects
 #'
 #' @import sf
-#' @rdname read_flights
-#' @export
+#' @param fpath File path.
+#' @rdname read_flight
 #'
 read_GPX <- function(fpath) {
 
@@ -96,8 +96,7 @@ read_GPX <- function(fpath) {
 #' Read a KML file into a list of simple feature object
 #'
 #' @import xml2
-#' @rdname read_flights
-#' @export
+#' @rdname read_flight
 #'
 read_KML <- function(fpath) {
 
@@ -191,8 +190,7 @@ read_KML <- function(fpath) {
 #' Read flights from TRACKS database
 #'
 #' @importFrom DBI dbGetQuery
-#' @rdname read_flights
-#' @export
+#' @rdname read_flight
 #'
 read_flight_db <- function(dsn, query) {
   res <- DBI::dbGetQuery(dsn, query)

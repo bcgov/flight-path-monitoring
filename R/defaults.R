@@ -1,9 +1,9 @@
 #' Default buffer distances (low = 1500m, moderate = 1000m, high = 500m) using reference label
-#' `in_UWR` created from a call to `distances`.
+#' `in_uwr` created from a call to `distances`.
 #' @export
 #' @rdname defaults
 default_dist <- function() {
-  distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR")
+  distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_uwr")
 }
 
 #' Default legal habitat area zones as defined in the document

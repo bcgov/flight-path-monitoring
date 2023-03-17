@@ -17,7 +17,7 @@ distances <- function(..., reflabel = "In UWR") {
   stopifnot(
     all(dist > 0L),
     all(!duplicated(dist)),
-    all(!names(dist) %in% c("All", "Buffers")) # Names reserved for other purpose
+    all(!names(dist) %in% c("all", "buffers")) # Names reserved for other purpose
   )
 
   # Set names if not provided
@@ -43,11 +43,10 @@ distances <- function(..., reflabel = "In UWR") {
 #' @param dist A named integer vector. buffer distances as produced by `distances`.
 #' @param sf_obj A spatial feature object from which geometries can be extracted.
 #' @return A list of named buffers as spatial feature objects. Names recycled from `dist`.
-#' @export
 #' @rdname distances
 buffers <- function(sf_obj, dist) {
 
-  # Make sure distances come from `distances`
+  # Make sure dist comes from `distances`
   stopifnot(isTRUE(attr(dist, "generator") == "distances"))
 
   # Cache buffers as they are computed to allow result recycling
@@ -80,15 +79,15 @@ buffers <- function(sf_obj, dist) {
 
   if (nrow(sf_obj)) {
 
-    # Return a list of buffer geometries with two additional `Buffers` and `All`. `Buffers` is
-    # all the buffers combined, `All` is all the buffers and the reference geometries.
+    # Return a list of buffer geometries with two additional `buffers` and `all`. `buffers` is
+    # all the buffers combined, `all` is all the buffers and the reference geometries.
     res <-
       c(
         lapply(dist[1], \(x) {cache(names(dist)[1])}),
         mapply(buffer_ring, names(dist)[-1], names(dist)[-length(dist)], SIMPLIFY = FALSE),
         list(
-          "Buffers" = buffer_ring(names(dist)[length(dist)], names(dist)[1]),
-          "All" = cache(names(dist)[length(dist)])
+          "buffers" = buffer_ring(names(dist)[length(dist)], names(dist)[1]),
+          "all" = cache(names(dist)[length(dist)])
         )
       )
     return(res)

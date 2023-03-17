@@ -5,13 +5,12 @@
 #' @param exclude Character vector of zone names to exclude.
 #' @import sf
 #' @return A list with `LINESTRING` segments and time spent in each zone.
-#' @details Also return an `All`
+#' @details Also return an `all`
 #' element which is the sum of of time spent in each zones. It is not the time spent in a union
 #' of all zones geometries. If the zones overlap, this information would be important to
 #' communicate to avoid confusion.
-#' @export
 #'
-time_in_zone <- function(sf_obj, zones, exclude = c("Buffers", "All")) {
+time_in_zone <- function(sf_obj, zones, exclude = c("buffers", "all")) {
 
   stopifnot(
     inherits(sf_obj, "sf"),
@@ -28,8 +27,7 @@ time_in_zone <- function(sf_obj, zones, exclude = c("Buffers", "All")) {
   sf::st_agr(sf_obj) <- factor("constant", levels(sf::st_agr(sf_obj)))
 
   # Compute intersection of LINESTRING geometries and zones
-  inter <- parallel::mclapply(
-    mc.cores = cores(),
+  inter <- parlapply()(
     zones[!names(zones) %in% exclude],
     function(z) {
       sf::st_intersection(sf_obj, z)
@@ -46,13 +44,13 @@ time_in_zone <- function(sf_obj, zones, exclude = c("Buffers", "All")) {
     )
   })
 
-  # Add an `All` element summing over all zones
-  time_in_z[["All"]] <- do.call(sum, time_in_z)
+  # Add an `all` element summing over all zones
+  time_in_z[["all"]] <- do.call(sum, time_in_z)
 
   return(
     list(
-      "Segments in zones" = inter,
-      "Time in zones" = time_in_z
+      "segments_in_zones" = inter,
+      "time_in_zones" = time_in_z
     )
   )
 

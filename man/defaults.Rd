@@ -4,7 +4,7 @@
 \alias{default_dist}
 \alias{default_zones}
 \title{Default buffer distances (low = 1500m, moderate = 1000m, high = 500m) using reference label
-\code{in_UWR} created from a call to \code{distances}.}
+\code{in_uwr} created from a call to \code{distances}.}
 \usage{
 default_dist()
 
@@ -16,7 +16,7 @@ resaved again into the cache directory. Default to FALSE.}
 }
 \description{
 Default buffer distances (low = 1500m, moderate = 1000m, high = 500m) using reference label
-\code{in_UWR} created from a call to \code{distances}.
+\code{in_uwr} created from a call to \code{distances}.
 
 Default legal habitat area zones as defined in the document
 \verb{Habitat Base Layers for Flight Monitoring Application.docx} from the github repository.

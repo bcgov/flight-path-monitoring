@@ -28,6 +28,7 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
   lapply(
     seq_len(length(flight)),
     \(x) {
+      on.exit(p(sprintf("Flight analysed : [%s]", x)), add = TRUE)
       process_one(
         flight[[x]],
         zones = zones,
@@ -37,7 +38,6 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
         check_tiles = check_tiles,
         flight_id = x
       )
-      p(sprintf("Flight analysed : [%s]", x))
     }
   ) |>
     combine_res(flightname = names(flight), geom_out)

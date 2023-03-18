@@ -2,7 +2,6 @@
 #'
 #' @param sf_obj A spatial feature object with `LINESTRING` geometries and field `time_deltas`.
 #' @param zones A named list of `POLYGON` geometries.
-#' @param exclude Character vector of zone names to exclude.
 #' @import sf
 #' @return A list with `LINESTRING` segments and time spent in each zone.
 #' @details Also return an `all`
@@ -10,7 +9,7 @@
 #' of all zones geometries. If the zones overlap, this information would be important to
 #' communicate to avoid confusion.
 #'
-time_in_zone <- function(sf_obj, zones, exclude = c("buffers", "all")) {
+time_in_zone <- function(sf_obj, zones) {
 
   stopifnot(
     inherits(sf_obj, "sf"),
@@ -27,12 +26,7 @@ time_in_zone <- function(sf_obj, zones, exclude = c("buffers", "all")) {
   sf::st_agr(sf_obj) <- factor("constant", levels(sf::st_agr(sf_obj)))
 
   # Compute intersection of LINESTRING geometries and zones
-  inter <- parlapply()(
-    zones[!names(zones) %in% exclude],
-    function(z) {
-      sf::st_intersection(sf_obj, z)
-    }
-  )
+  inter <- parlapply()(zones, function(z) { sf::st_intersection(sf_obj, z) })
 
   # Compute time spent in zone as the ratio of LINESTRING length in the zone to the original
   # LINESTRING length multiplied by the time difference recorded between the two endpoints forming

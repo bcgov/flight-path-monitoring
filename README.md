@@ -46,40 +46,16 @@ analysis
 ```
 
 ### Plot the flight analysis
-```r
-library(ggplot2)
-
-ggplot() +
-  geom_sf(data = analysis$zones$low, fill = "beige") +
-  geom_sf(data = analysis$zones$moderate, fill = "yellow") +
-  geom_sf(data = analysis$zones$high, fill = "orange") +
-  geom_sf(data = analysis$zones$in_uwr, fill = "red") +
-  geom_sf(data = analysis$flight |> sf::st_geometry(), colour = "lightgreen")+
-  geom_sf(data = analysis$segments$in_uwr |> sf::st_geometry(), colour = "darkblue") +
-  geom_sf(data = analysis$segments$high |> sf::st_geometry(), colour = "blue") +
-  geom_sf(data = analysis$segments$moderate |> sf::st_geometry(), colour = "cornflowerblue") +
-  geom_sf(data = analysis$segments$low |> sf::st_geometry(), colour = "skyblue") +
-  geom_sf(data = analysis$segments$filtered |> sf::st_geometry(), colour = "deeppink")
-```
-![](./.github/assets/ggplot.png)
 
 ```
-library(leaflet)
-
-leaflet() |>
-  addProviderTiles(provider = "Esri.WorldTopoMap") |>
-  addPolygons(data = analysis$zones$in_uwr, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.35) |>
-  addPolygons(data = analysis$zones$high, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.275) |>
-  addPolygons(data = analysis$zones$moderate, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.2) |>
-  addPolygons(data = analysis$zones$low, color = "white", opacity = 1, weight = 1, fillColor = "#db0f27", fillOpacity = 0.125) |>
-  addPolylines(data = analysis$flight, weight = 1, color = "darkgreen", dashArray = 4) |>
-  addPolylines(data = analysis$segments$in_uwr, weight = 2, color = "darkblue", opacity = 1) |>
-  addPolylines(data = analysis$segments$high, weight = 2, color = "blue", opacity = 1) |>
-  addPolylines(data = analysis$segments$moderate, weight = 2, color = "cornflowerblue", opacity = 1) |>
-  addPolylines(data = analysis$segments$low, weight = 2, color = "skyblue", opacity = 1) |>
-  addPolylines(data = analysis$segments$filtered, weight = 2, color = "deeppink", opacity = 1)
+plot(analysis)
 ```
 ![](./.github/assets/leaflet.png)
+
+```r
+plot(analysis, backend = "ggplot2")
+```
+![](./.github/assets/ggplot.png)
 
 ## Processing a folder of flights
 ```r

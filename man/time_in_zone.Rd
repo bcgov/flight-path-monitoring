@@ -4,14 +4,12 @@
 \alias{time_in_zone}
 \title{Compute time spent in zones}
 \usage{
-time_in_zone(sf_obj, zones, exclude = c("buffers", "all"))
+time_in_zone(sf_obj, zones)
 }
 \arguments{
 \item{sf_obj}{A spatial feature object with \code{LINESTRING} geometries and field \code{time_deltas}.}
 
 \item{zones}{A named list of \code{POLYGON} geometries.}
-
-\item{exclude}{Character vector of zone names to exclude.}
 }
 \value{
 A list with \code{LINESTRING} segments and time spent in each zone.

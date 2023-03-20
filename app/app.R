@@ -46,7 +46,7 @@ server <- function(input, output) {
                                       input$ListOfFlights_rows_selected)})
 
   flight <- reactive({
-    read_GPX(list.files(flightPathDir, full.names = TRUE)[flight_row()])
+    read_flight(list.files(flightPathDir, full.names = TRUE)[flight_row()])
   })
 
   processed_flight <- reactive({

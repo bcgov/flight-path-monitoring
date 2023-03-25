@@ -79,7 +79,13 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
   # Add buffers
   zoi <- buffers(zoi, dist)
 
-    # Append zone of interest to result
+  # Points of interest
+  poi <- compute_poi(ftp, zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
+
+  # Drop all and buffers
+  zoi[c("all", "buffers")] <- NULL
+
+  # Append zone of interest to result
   if (isTRUE(geom_out)) {
     res[["zones"]] <- zoi |>
       lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])) |>
@@ -90,8 +96,6 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
       })
   }
 
-  # Points of interest
-  poi <- compute_poi(ftp, zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
   if (nrow(poi) == 0L) { return(res) } # No time to account for
 
   # Lines of interest
@@ -263,7 +267,7 @@ combine_res <- function(res, flightname, geom_out) {
   if (isTRUE(geom_out)) {
 
     # First level deep geometries
-    nmlvl1 <- lapply(res, names) |> unlist() |> unique() |> sort()
+    nmlvl1 <- lapply(res, names) |> unlist() |> unique()
 
     for (nm in nmlvl1) {
 
@@ -276,7 +280,7 @@ combine_res <- function(res, flightname, geom_out) {
       } else if (!nm %in% "summary") {
 
         # Second level deep geometries
-        nmlvl2 <- lapply(x, names) |> unlist() |> unique() |> sort()
+        nmlvl2 <- lapply(x, names) |> unlist() |> unique()
 
         for (nm2 in nmlvl2) {
 

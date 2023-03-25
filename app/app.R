@@ -72,7 +72,7 @@ server <- function(input, output) {
   })
 
 
-  output$ListOfFlights <- DT::renderDT(as.data.frame(list.files(flightPathDir)),
+  output$ListOfFlights <- DT::renderDT(as.data.frame(File = list.files(flightPathDir)),
                                        selection = list(mode = 'single', selected = 1L, target = 'row'))
 }
 

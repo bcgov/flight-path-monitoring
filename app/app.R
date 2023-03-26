@@ -4,6 +4,8 @@ library(DT)
 library(flight.path.monitoring)
 library(leaflet)
 
+options(shiny.maxRequestSize = 10 * 1024^2)
+
 flightPathDir <- file.path("data-raw", "Heli data", "NEH", "2021")
 habitat_areas <- readRDS(file.path("data-raw", "Habitat", "habitat_areas.rds"))
 wildlife_telemetry <- readRDS(file.path("data-raw", "Habitat", "wildlife_telemetry.rds"))
@@ -26,18 +28,31 @@ ui <- dashboardPage(
       box(title = "Flights",
           DT::DTOutput("ListOfFlights")
           )
+    ),
+    fluidRow(
+      valueBoxOutput("flight_name", width = 4),
+      valueBoxOutput("flight_time_uwr", width = 2),
+      valueBoxOutput("flight_time_high", width = 2),
+      valueBoxOutput("flight_time_moderate", width = 2),
+      valueBoxOutput("flight_time_low", width = 2)
+    ),
+    fluidRow(
+      verbatimTextOutput('logs')
     )
+
   )
 )
 
 server <- function(input, output) {
 
-  NewFlight <- reactive({
+  output$logs <- renderPrint({
     req(input$upload)
-    read_flights(input$upload$datapath)
-
-    file.copy(from = file$datapath,
-              to = file.path(flightPathDir, input$name),
+    file_to_copy <- input$upload
+    cat("Reading file:", file_to_copy$name, "\n")
+    cat("size:", file_to_copy$size, " Bytes\n")
+    cat("copying to :", file.path(flightPathDir, file_to_copy$name), "\n")
+    file.copy(from = file_to_copy$datapath,
+              to = file.path(flightPathDir, file_to_copy$name),
               overwrite = FALSE)
   })
 
@@ -46,15 +61,19 @@ server <- function(input, output) {
                                       input$ListOfFlights_rows_selected)})
 
   flight <- reactive({
-    read_flight(list.files(flightPathDir, full.names = TRUE)[flight_row()])
+    withProgress(message = "Read Flight", value = 0, {
+      read_flight(list.files(flightPathDir, full.names = TRUE)[flight_row()])
+    })
   })
 
   processed_flight <- reactive({
-    process_flight(flight = flight(),
-                   zones = habitat_areas,
-                   dist = distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR"),
-                   geom_out = TRUE)
-    })
+    withProgress(message = "Processing Flight", value = 0, {
+      process_flight(flight = flight(),
+                     zones = habitat_areas,
+                    dist = distances(low = 1500, moderate = 1000, high = 500, reflabel = "in_UWR"),
+                    geom_out = TRUE)
+      })
+    }) |> bindCache(list.files(flightPathDir, full.names = TRUE)[flight_row()])
 
   output$flight_map <- renderLeaflet({
     leaflet() |>
@@ -71,8 +90,25 @@ server <- function(input, output) {
       addPolylines(data = processed_flight()[["segments"]][["filtered"]], weight = 2, color = "deeppink", opacity = 1)
   })
 
+  #output$flight_stats <- DT::renderDT(processed_flight()[["summary"]])
 
-  output$ListOfFlights <- DT::renderDT(as.data.frame(File = list.files(flightPathDir)),
+  output$flight_name <- renderValueBox(valueBox(processed_flight()[["summary"]][["name"]], subtitle = "Flight Name"))
+  output$flight_time_uwr <- renderValueBox(valueBox(value = round(processed_flight()[["summary"]][["in_UWR"]], 2),
+                                                    subtitle = "In UWR", color = "red"))
+  output$flight_time_high <- renderValueBox(valueBox(value = round(processed_flight()[["summary"]][["high"]], 2),
+                                                     subtitle = "High", color = "orange"))
+  output$flight_time_moderate <- renderValueBox(valueBox(value = round(processed_flight()[["summary"]][["moderate"]], 2),
+                                                         subtitle = "Moderate", color = "yellow"))
+  output$flight_time_low <- renderValueBox(valueBox(value = round(processed_flight()[["summary"]][["low"]], 2),
+                                                    subtitle = "Low", color = "green"))
+  #output$flight_time_all <- renderValueBox(valueBox(value = round(processed_flight()[["summary"]][["all"]], 2),
+  #                                                  subtitle = "All"))
+
+  list_of_flights <- reactive({
+    list.files(flightPathDir)
+  }) |> bindEvent(input$upload, ignoreNULL = FALSE)
+
+  output$ListOfFlights <- DT::renderDT(data.frame(File = list_of_flights()),
                                        selection = list(mode = 'single', selected = 1L, target = 'row'))
 }
 

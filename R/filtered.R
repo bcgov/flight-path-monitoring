@@ -69,7 +69,10 @@ filtered <- function(sf_obj, zone, aoi, max_dist, max_altitude, check_tiles = FA
   # Reference range around coordinates used for `crop` with masking.
   # Here we make the hypothesis that anything further than the max
   # buffer distance should not count in the viewshed analysis
-  refrange <- coords |> terra::vect() |> terra::buffer(max_dist)
+  refrange <- coords |>
+    terra::vect() |>
+    terra::buffer(max_dist) |>
+    terra::`crs<-`(value = terra::crs(sf_obj_in_crs))
 
   # Wrap on Windows
   if (winos()) {

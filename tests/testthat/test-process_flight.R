@@ -5,4 +5,7 @@ test_that("Process flight works", {
       untar(exdir = tempdir())
     analysis <- file.path(tempdir(), "flight.gpx") |> read_flight() |> process_flight()
   })
+  expect_no_error({
+    analysis <- file.path(tempdir(), "flight.gpx") |> process_flight()
+  })
 })

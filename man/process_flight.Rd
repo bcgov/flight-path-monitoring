@@ -11,6 +11,7 @@ process_flight(
   dist = default_dist(),
   max_altitude = 500,
   geom_out = TRUE,
+  export_dir = NULL,
   check_tiles = FALSE
 )
 
@@ -20,6 +21,7 @@ process_one(
   dist = default_dist(),
   max_altitude = 500,
   geom_out = TRUE,
+  export_path = NULL,
   check_tiles = FALSE,
   flight_id = 1L
 )
@@ -36,10 +38,15 @@ process_one(
 \item{geom_out}{A logical. If TRUE, some geometries used for the analysis are returned.
 Defaults to TRUE.}
 
+\item{export_dir}{If provided, will save some geometries in KML format in the specified folder.
+Folder has to be created beforehand. Defaults to NULL.}
+
 \item{check_tiles}{Should the tiles that you already have in your cache be checked to see if
 they need updating? Default FALSE. If you are running the same code frequently and are confident
 the tiles haven't changed, setting this to FALSE will speed things up. For digital elevation
 model from \code{bcmaps::cded}.}
+
+\item{export_path}{A character. File path where to save the exported geometries.}
 
 \item{flight_id}{An integer. Flight id.}
 }

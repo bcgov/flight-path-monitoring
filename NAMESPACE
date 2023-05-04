@@ -2,6 +2,7 @@
 
 S3method(plot,flightanalysis)
 S3method(print,flightanalysis)
+export(cache_dir)
 export(default_dist)
 export(default_zones)
 export(distances)

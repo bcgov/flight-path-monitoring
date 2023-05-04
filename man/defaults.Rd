@@ -3,12 +3,15 @@
 \name{default_dist}
 \alias{default_dist}
 \alias{default_zones}
+\alias{cache_dir}
 \title{Default buffer distances (low = 1500m, moderate = 1000m, high = 500m) using reference label
 \code{in_uwr} created from a call to \code{distances}.}
 \usage{
 default_dist()
 
 default_zones(recache = FALSE)
+
+cache_dir()
 }
 \arguments{
 \item{recache}{A boolean. Should the legal habitat area zones be retrieved from source again and
@@ -20,4 +23,9 @@ Default buffer distances (low = 1500m, moderate = 1000m, high = 500m) using refe
 
 Default legal habitat area zones as defined in the document
 \verb{Habitat Base Layers for Flight Monitoring Application.docx} from the github repository.
+
+Return cache directory used by package
+}
+\details{
+The cache directory will be created if it does not already exist.
 }

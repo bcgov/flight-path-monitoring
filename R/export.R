@@ -28,3 +28,7 @@ export <- function(x, file) {
   return(invisible())
 
 }
+
+style_kml <- function(file) {
+
+}

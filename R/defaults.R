@@ -11,7 +11,6 @@ default_dist <- function() {
 #' @param recache A boolean. Should the legal habitat area zones be retrieved from source again and
 #' resaved again into the cache directory. Default to FALSE.
 #' @export
-#' @importFrom tools R_user_dir
 #' @importFrom utils download.file unzip
 #' @importFrom bcdata bcdc_get_record bcdc_query_geodata filter collect
 #' @rdname defaults
@@ -23,16 +22,8 @@ default_zones <- function(recache = FALSE) {
       NON_LEGAL_FEAT_ATRB_2_VALUE <- NULL
   }
 
-  # Cache directory
-  zones_dir <- tools::R_user_dir("flightpathmonitoring", "cache")
-  if (!dir.exists(zones_dir)) {
-    message("Creating directory to cache legal habitat area zones at ",
-      zones_dir)
-    dir.create(zones_dir, showWarnings = FALSE, recursive = TRUE)
-  }
-
   # Set presaved filename
-  presaved <- file.path(zones_dir, "habitat_areas.rds")
+  presaved <- file.path(cache_dir(), "habitat_areas.rds")
 
   # Retrieve legal habitat area zones
   if (!file.exists(presaved) | isTRUE(recache)) {
@@ -129,3 +120,18 @@ default_zones <- function(recache = FALSE) {
   return(habitat_areas)
 
 }
+
+#' Return cache directory used by package
+#' @details The cache directory will be created if it does not already exist.
+#' @importFrom tools R_user_dir
+#' @export
+#' @rdname defaults
+cache_dir <- function() {
+  d <- tools::R_user_dir("flightpathmonitoring", "cache")
+  if (!dir.exists(d)) {
+    message("Creating directory to cache legal habitat area zones at ", d)
+    dir.create(d, showWarnings = FALSE, recursive = TRUE)
+  }
+  return(d)
+}
+

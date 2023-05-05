@@ -8,13 +8,16 @@ args <- commandArgs(TRUE)
 jobpath <- args[1]
 job <- jobpath |> basename()
 email <- args[2]
-
-# Send initial email
-
-##### initial email ####
+viewshed <- args[3] |> as.logical()
 
 # Start job
 print(paste("Job Start time :", Sys.time()))
+print(ifelse(viewshed, "Viewshed analysis activated", "Viewshed analysis disabled"))
+print("Submitted Job ID : %s" |> sprintf(job))
+
+# Send initial email
+print("Signaling user : %s" |> sprintf(email))
+##### initial email ####
 
 # Unzip zip files
 zips <- list.files(jobpath, "\\.zip$", ignore.case = TRUE, full.names = TRUE)
@@ -30,7 +33,13 @@ if (length(zips)) {
 
 # Process flights
 files <- list.files(jobpath, "\\.gpx$|\\.kml$", ignore.case = TRUE, full.names = TRUE, recursive = TRUE)
-results <- process_flight(files, viewshed = FALSE)
+
+print("User submitted flights [%s]:" |> sprintf(length(files)))
+for (file in files) {
+  print(file)
+}
+print("Processing flights...")
+results <- process_flight(files, viewshed = viewshed)
 
 # Save results
 saveRDS(results, file.path(jobpath, "results.rds"))

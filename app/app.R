@@ -56,6 +56,17 @@ ui <- navbarPage(
 
                tags$br(),
 
+               checkboxInput(
+                 "viewshed",
+                 tags$span(
+                   "Apply viewshed filter",
+                   actionLink("viewshedhelp", label = icon("circle-question"))
+                 ),
+                 value = TRUE
+               ),
+
+               tags$br(),
+
                actionButton("launchjob", "Start Analysis Job", icon = icon("helicopter"), width = "100%", class = "btn-primary")
 
              ),
@@ -134,6 +145,20 @@ server <- function(input, output, session) {
     validfiles() && validemail()
   })
 
+  observeEvent(input$viewshedhelp, {
+    session$sendCustomMessage(
+      type = 'userMessage',
+      message = paste(
+        'A viewshed is the geographical area that is visible from a location.',
+        'It includes all surrounding points that are in line-of-sight with that location',
+        'and excludes points that are beyond the horizon or obstructed by terrain and other',
+        'features (e.g., buildings, trees).\n\nViewshed filters out points masked by terrain',
+        'elevation.\n\nDisabling viewshed will greatly increase analysis speed, but reduce',
+        'accuracy of results in mountainous regions.'
+      )
+    )
+  })
+
   observe({
     if (isTRUE(launchjobenabled())) {
       updateActionButton(session, "launchjob", label = "Start Analysis Job")
@@ -166,9 +191,9 @@ server <- function(input, output, session) {
       input$upload$datapath,
       file.path(jobpath, input$upload$name)
     )
+    viewshed <- input$viewshed
 
     # Reset Job Form state
-    updateTextInput(session, "email", "Job alert email", placeholder = "user@gov.bc.ca", value = "")
     session$sendCustomMessage(type="jsCode", list(code= "$('#upload').val('')"))
     session$sendCustomMessage(type="jsCode", list(code= "$('#upload_progress').css('visibility', 'hidden')"))
     session$sendCustomMessage(type="jsCode", list(code= "$('#upload_progress').find('.progress-bar').css('width', '0')"))
@@ -178,9 +203,10 @@ server <- function(input, output, session) {
     # Launch job
     system(
       sprintf(
-        "Rscript jobrun.R %s %s > %s.log 2>&1",
+        "Rscript jobrun.R %s %s %s > %s.log 2>&1",
         jobpath,
         email,
+        viewshed,
         file.path(jobpath, activejob())
       ),
       wait = FALSE
@@ -300,7 +326,7 @@ server <- function(input, output, session) {
 
       }
       # Job done
-      else if (tail(joblog, 1L) |> grepl("[1] \"Job Completed time :", x = _, fixed = TRUE)) {
+      else if (isTRUE(tail(joblog, 1L) |> grepl("[1] \"Job Completed time :", x = _, fixed = TRUE))) {
 
         rowcontent <- fluidRow(
           jobstatus("circle-check", "#00CC00"),

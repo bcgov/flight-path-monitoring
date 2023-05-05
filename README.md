@@ -82,6 +82,14 @@ analysis
 250:       250    Friday Morning Flight   0.000000 secs    35.99603 secs   1114.6335 secs   91.78273 secs   1242.4123 secs 20220422-155759-0006006-141724
 ```
 
+## Use Shiny app to interact with package
+
+```r
+shiny::runApp("./app")
+```
+
+![](./.github/assets/app.png)
+
 ## Progress report (Windows or non-parallel processing)
 
 On Windows OS or when `options("flight.path.monitoring.use.parallel" = FALSE)`, both `read_flight` and `process_flight` can report progress using the [`progressr`](https://github.com/HenrikBengtsson/progressr) package framework.

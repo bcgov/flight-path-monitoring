@@ -1,5 +1,6 @@
 library(shiny)
 library(flight.path.monitoring)
+library(blastula)
 
 # Copy assets to cache directory
 if (file.exists("habitat_areas.rds")) {

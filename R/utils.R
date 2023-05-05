@@ -173,3 +173,9 @@ plot.flightanalysis <- function(x, y, ..., backend = c("leaflet", "ggplot2"), fl
   return(p)
 
 }
+
+#' SMTP configuration
+#' @export
+smtpconf <- function() {
+  smtp_creds
+}

@@ -233,7 +233,7 @@ compute_loi <- function(poi, crs, flight_id) {
   loi[["time_deltas"]] <- difftime(
     poi[["time"]][-1],
     poi[["time"]][-nrow(poi)],
-    units = "secs"
+    units = "mins"
   )
 
   # Add flight_id
@@ -254,7 +254,7 @@ compute_loi <- function(poi, crs, flight_id) {
 #' @noRd
 #'
 empty_results <- function(flight, dist) {
-  zero <- function(...) as.difftime(0, units = "secs")
+  zero <- function(...) as.difftime(0, units = "mins")
   res <- list("summary" =
     do.call(
       data.table::data.table,

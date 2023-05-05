@@ -371,10 +371,96 @@ server <- function(input, output, session) {
 
     } else {
 
+      tb <- results()[["summary"]]
+      idx <- seq_len(nrow(tb))
+      tb[["download"]] <- vapply(
+        idx,
+        \(i) {
+          downloadLink(
+            paste0("dldkml", i),
+            label = "KML"
+          ) |> as.character()
+        },
+        character(1)
+      )
+      tb[["map"]] <- vapply(
+        idx,
+        \(i) {
+          actionLink(
+            paste0("viewmap", i),
+            label = "View"
+          ) |> as.character()
+        },
+        character(1)
+      )
+
       output$jobresults <- renderUI({
+        list(
+          tags$h5("Results"),
+          tags$span(
+            "Download ",
+            downloadLink("dldallcsv", "CSV"),
+            downloadLink("dldallkml", "KML"),
+            downloadLink("dldallrds", "RDS")
+          ),
+          tags$hr(),
+          tags$h5("Summary of time in zones per flight (minutes)"),
+          renderTable(
+            tb,
+            striped = TRUE,
+            digits = 0L,
+            sanitize.colnames.function = function(x) {gsub("_", " ", x) |> tools::toTitleCase()},
+            sanitize.text.function = function(x) x
+          )
+        )
 
-        renderTable(results()[["summary"]])
+      })
 
+      output$dldallcsv <- downloadHandler(
+        filename = function() { "results.csv" },
+        content = function(file) { data.table::fwrite(results()[["summary"]], file) },
+        contentType = "text/csv"
+      )
+
+      output$dldallkml <- downloadHandler(
+        filename = function() { "results.kml" },
+        content = function(file) { export(results(), file) },
+        contentType = "application/vnd.google-earth.kml+xml"
+      )
+
+      output$dldallrds <- downloadHandler(
+        filename = function() { "results.rds" },
+        content = function(file) { saveRDS(results(), file) },
+        contentType = "application/octet-stream"
+      )
+
+      lapply(idx, \(i) {
+        output[[paste0("dldkml", i)]] <<- downloadHandler(
+          filename = function() {
+            paste0(tb[["filename"]][i],".kml")
+          },
+          content = function(file) {
+            export(results(), file, flight_id = tb[["flight_id"]][i])
+          },
+          contentType = "application/vnd.google-earth.kml+xml"
+        )
+      })
+
+      lapply(idx, \(i) {
+        observeEvent(input[[paste0("viewmap", i)]], {
+          showModal(
+            modalDialog(
+              leaflet::leafletOutput("flightmap", height = "80vh"),
+              title = tb[["name"]][i],
+              easyClose = TRUE,
+              size = "xl",
+              footer = NULL
+            )
+          )
+          output$flightmap <- leaflet::renderLeaflet({
+            plot(results(), flight_id = tb[["flight_id"]][i])
+          })
+        })
       })
 
     }

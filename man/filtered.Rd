@@ -4,7 +4,15 @@
 \alias{filtered}
 \title{Compute masked points index}
 \usage{
-filtered(sf_obj, zone, aoi, max_dist, max_altitude, check_tiles = FALSE)
+filtered(
+  sf_obj,
+  zone,
+  aoi,
+  max_dist,
+  max_altitude,
+  viewshed = TRUE,
+  check_tiles = FALSE
+)
 }
 \arguments{
 \item{sf_obj}{A spatial feature object of flight track points.}
@@ -16,6 +24,9 @@ filtered(sf_obj, zone, aoi, max_dist, max_altitude, check_tiles = FALSE)
 \item{max_dist}{Maximum distance below which a track point can be considered.}
 
 \item{max_altitude}{distance in meters to represent the maximum altitude for a track point to be considered.}
+
+\item{viewshed}{A logical. Perform viewshed analysis to remove flight segments masked by terrain.
+Default to TRUE. Most compute intensive task of the analysis.}
 
 \item{check_tiles}{Should the tiles that you already have in your cache be checked to see if
 they need updating? Default FALSE. If you are running the same code frequently and are confident

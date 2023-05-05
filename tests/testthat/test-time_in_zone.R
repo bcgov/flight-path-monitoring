@@ -2,7 +2,7 @@ test_that("Time in zone returns errors when expected and computes the time spent
 
   # Create a LINESTRING sf object
   sf_obj <- c(-5,5,0,0) |> matrix(2,2) |> sf::st_linestring() |> sf::st_sfc() |> sf::st_as_sf()
-  sf_obj[["time_deltas"]] <- as.difftime(10, format = "%X", units = "secs", tz = "UTC")
+  sf_obj[["time_deltas"]] <- as.difftime(10, format = "%X", units = "mins", tz = "UTC")
 
   # Create a list of named zones
   zones <- list(
@@ -29,7 +29,7 @@ test_that("Time in zone returns errors when expected and computes the time spent
 
   # Empty checks
   sf_obj_empty <- sf::st_linestring() |> sf::st_sfc() |> sf::st_as_sf()
-  sf_obj_empty[["time_deltas"]] <- as.difftime(integer(1), format = "%X", units = "secs", tz = "UTC")
+  sf_obj_empty[["time_deltas"]] <- as.difftime(integer(1), format = "%X", units = "mins", tz = "UTC")
   expect_silent(time_in_zone(sf_obj_empty, setNames(list(), character())))
 
   # Errors checks

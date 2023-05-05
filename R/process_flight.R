@@ -6,8 +6,8 @@
 #' @param max_altitude Maximum altitude in meters for a track point to be considered.
 #' @param geom_out A logical. If TRUE, some geometries used for the analysis are returned.
 #' Defaults to TRUE.
-#' @param export_dir If provided, will save some geometries in KML format in the specified folder.
-#' Folder has to be created beforehand. Defaults to NULL.
+#' @param viewshed A logical. Perform viewshed analysis to remove flight segments masked by terrain.
+#' Default to TRUE. Most compute intensive task of the analysis.
 #' @param check_tiles Should the tiles that you already have in your cache be checked to see if
 #' they need updating? Default FALSE. If you are running the same code frequently and are confident
 #' the tiles haven't changed, setting this to FALSE will speed things up. For digital elevation
@@ -18,7 +18,8 @@
 #' @export
 #'
 process_flight <- function(flight, zones = default_zones(), dist = default_dist(),
-                           max_altitude = 500, geom_out = TRUE, export_dir = NULL, check_tiles = FALSE) {
+                           max_altitude = 500, geom_out = TRUE, viewshed = TRUE,
+                           check_tiles = FALSE) {
 
   # Make sure flight comes from `read_flight`
   if (!inherits(flight, "character")) {
@@ -43,25 +44,15 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
         flx <- flight[[x]]
       }
 
-      # Export path
-      export_path <- NULL
-      if (!is.null(export_dir)) {
-        if (dir.exists(export_dir)) {
-          export_path <- file.path(export_dir, paste0(names(flight)[x], "_results.kml"))
-        } else {
-          warning("Provided export directory does not exist, parameter will be ignored. [export_dir : ", export_dir, "]")
-        }
-      }
-
       process_one(
         flx,
         zones = zones,
         dist = dist,
         max_altitude = max_altitude,
         geom_out = geom_out,
+        viewshed = viewshed,
         check_tiles = check_tiles,
-        flight_id = x,
-        export_path = export_path
+        flight_id = x
       )
     }
   ) |>
@@ -72,19 +63,9 @@ process_flight <- function(flight, zones = default_zones(), dist = default_dist(
 #' Process a single flight
 #' @rdname process_flight
 #' @param flight_id An integer. Flight id.
-#' @param export_path A character. File path where to save the exported geometries.
 process_one <- function(flight, zones = default_zones(), dist = default_dist(),
-                        max_altitude = 500, geom_out = TRUE, export_path = NULL,
+                        max_altitude = 500, geom_out = TRUE, viewshed = TRUE,
                         check_tiles = FALSE, flight_id = 1L) {
-
-  export <- FALSE
-  if (!is.null(export_path)) {
-    if (dir.exists(dirname(export_path))) {
-      export <- TRUE
-    } else {
-      warning("Provided export path directory does not exist, parameter will be ignored. [export_path : ", export_path, "]")
-    }
-  }
 
   # Set default flight_id for processing a single flight
   flight[["tracks"]][["flight_id"]] <- flight_id
@@ -106,7 +87,7 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
 
   # Create result object
   res <- empty_results(flight, dist)
-  if (isTRUE(geom_out) || isTRUE(export)) {
+  if (isTRUE(geom_out)) {
     res[["flight"]] <- flight[["tracks"]]
   }
 
@@ -116,13 +97,16 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
   zoi <- buffers(zoi, dist)
 
   # Points of interest
-  poi <- compute_poi(ftp, zoi, aoi, max(dist), max_altitude, check_tiles = check_tiles)
+  poi <- compute_poi(
+    ftp, zoi, aoi, max(dist), max_altitude,
+    viewshed = viewshed, check_tiles = check_tiles
+  )
 
   # Drop all and buffers
   zoi[c("all", "buffers")] <- NULL
 
   # Append zone of interest to result
-  if (isTRUE(geom_out) || isTRUE(export)) {
+  if (isTRUE(geom_out)) {
     res[["zones"]] <- zoi |>
       lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])) |>
       lapply(sf::st_as_sf) |>
@@ -138,7 +122,7 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
   loi <- compute_loi(poi, sf::st_crs(zoi[[1]]), flight_id)
 
   # Record filtered loi
-  if (isTRUE(geom_out) || isTRUE(export)) {
+  if (isTRUE(geom_out)) {
     res[["segments"]][["filtered"]] <- loi[which(loi[["filtered"]]),] |>
       sf::st_transform(crs = sf::st_crs(flight[["tracks"]]))
   }
@@ -158,23 +142,12 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
   )
 
   # Add segments when `geom_out` is true.
-  if (isTRUE(geom_out) || isTRUE(export)) {
+  if (isTRUE(geom_out)) {
     res[["segments"]] <- c(
       in_z[["segments_in_zones"]] |>
         lapply(sf::st_transform, crs = sf::st_crs(flight[["tracks"]])),
       res[["segments"]]
     )
-  }
-
-  # Export geometries from results
-  if (isTRUE(export)) {
-    export(res, export_path)
-    # Remove geom if only export is TRUE
-    if (!isTRUE(geom_out)) {
-      res[["flight"]] <- NULL
-      res[["zones"]] <- NULL
-      res[["segments"]] <- NULL
-    }
   }
 
   return(res)
@@ -184,7 +157,7 @@ process_one <- function(flight, zones = default_zones(), dist = default_dist(),
 #' To reduce the size of the `process_flight` function
 #' @noRd
 #'
-compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
+compute_poi <- function(ftp, iz, aoi, d, a, viewshed = TRUE, check_tiles = FALSE) {
 
   # Points of interest
   # Points that intersect with the zones and buffers + the points
@@ -217,7 +190,10 @@ compute_poi <- function(ftp, iz, aoi, d, a, check_tiles = FALSE) {
   poi[["buffer"]] <- pts_to_keep %in% pts_in_buffer
 
   # Check if points should be filtered because of terrain masking or altitude
-  poi[["filtered"]] <- filtered(poi, iz[[1]], aoi, d, a, check_tiles = check_tiles)
+  poi[["filtered"]] <- filtered(
+    poi, iz[[1]], aoi, d, a,
+    viewshed = viewshed, check_tiles = check_tiles
+  )
 
   return(poi)
 
@@ -257,7 +233,7 @@ compute_loi <- function(poi, crs, flight_id) {
   loi[["time_deltas"]] <- difftime(
     poi[["time"]][-1],
     poi[["time"]][-nrow(poi)],
-    units = "secs"
+    units = "mins"
   )
 
   # Add flight_id
@@ -278,7 +254,7 @@ compute_loi <- function(poi, crs, flight_id) {
 #' @noRd
 #'
 empty_results <- function(flight, dist) {
-  zero <- function(...) as.difftime(0, units = "secs")
+  zero <- function(...) as.difftime(0, units = "mins")
   res <- list("summary" =
     do.call(
       data.table::data.table,

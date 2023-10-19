@@ -1,7 +1,7 @@
 # Email to come, have to figure out a way to send out email from shinyapps.io since it is not
 # officially supported, have to use own smtp server.
 
-options("flight.path.monitoring.use.parallel" = TRUE)
+options("flight.path.monitoring.use.parallel" = FALSE)
 
 # Set storage
 options("flight.path.monitoring.cloud.storage" = TRUE)

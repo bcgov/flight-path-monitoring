@@ -2,23 +2,28 @@ library(shiny)
 library(flight.path.monitoring)
 library(blastula)
 
+# Set storage
+options("flight.path.monitoring.cloud.storage" = TRUE)
+source("storage.R", local = TRUE)
+storage <- storage_backend()
+
 # Copy assets to cache directory
 if (file.exists("habitat_areas.rds")) {
   file.rename("habitat_areas.rds", file.path(cache_dir(), "habitat_areas.rds"))
 }
 
 # Setup flight jobs directory to hold submitted fligths
-flightJobsDir <- file.path(getwd(), "flight_jobs")
-dir.create(flightJobsDir, showWarnings = FALSE)
+flightJobsDir <- file.path("flight_jobs")
+storage$dir.create(flightJobsDir, showWarnings = FALSE)
 
 # Job ID generator helper function
 jobid <- function(n = 10) {
   job <- c(48:57, 65:90) |> sample(replace = TRUE, size = n) |> as.raw() |> rawToChar()
   jobpath <- file.path(flightJobsDir, job)
-  if (dir.exists(jobpath)) {
+  if (storage$dir.exists(jobpath)) {
     job <- jobid(n)
   } else {
-    dir.create(jobpath, showWarnings = FALSE)
+    storage$dir.create(jobpath, showWarnings = FALSE)
   }
   return(job)
 }
@@ -265,7 +270,7 @@ server <- function(input, output, session) {
     }
 
     # Job does not exist state
-    if (!dir.exists(jobpath)) {
+    if (!storage$dir.exists(jobpath)) {
 
       rowcontent <- fluidRow(
         jobstatus("circle-exclamation", "#FFA500"),
@@ -278,8 +283,8 @@ server <- function(input, output, session) {
 
       logpath <- file.path(jobpath, "%s.log" |> sprintf(input$jobid))
       joblog <- ""
-      if (file.exists(logpath)) {
-        joblog <- readLines(logpath, warn = FALSE)
+      if (storage$file.exists(logpath)) {
+        joblog <- storage$readLines(logpath, warn = FALSE)
       }
 
       # Collapsible Log block
@@ -335,7 +340,7 @@ server <- function(input, output, session) {
           joblogblock(collapsed = TRUE)
         )
 
-        results(readRDS(file.path(flightJobsDir, input$jobid, "results.rds")))
+        results(storage$readRDS(file.path(flightJobsDir, input$jobid, "results.rds")))
 
       }
       # Still running

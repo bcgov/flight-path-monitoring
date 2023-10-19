@@ -67,7 +67,7 @@ plot.flightanalysis <- function(x, y, ..., backend = c("leaflet", "ggplot2"), fl
       p <- leaflet::leaflet() |>
         leaflet::addProviderTiles(provider = "Esri.WorldTopoMap")
     } else {
-      p <- proxy
+      p <- proxy |> leaflet::clearShapes() |> leaflet::clearControls()
     }
 
     overlayGroups <- character()

@@ -1,6 +1,13 @@
 # Email to come, have to figure out a way to send out email from shinyapps.io since it is not
 # officially supported, have to use own smtp server.
 
+options("flight.path.monitoring.use.parallel" = TRUE)
+
+# Set storage
+options("flight.path.monitoring.cloud.storage" = TRUE)
+source("storage.R", local = TRUE)
+storage <- storage_backend()
+
 # Run Flight Analysis
 library(flight.path.monitoring)
 library(blastula)
@@ -57,7 +64,7 @@ print("Processing flights...")
 results <- process_flight(files, viewshed = viewshed)
 
 # Save results
-saveRDS(results, file.path(jobpath, "results.rds"))
+storage$saveRDS(results, file.path(jobpath, "results.rds"))
 
 # Send terminal email
 tryCatch({
@@ -79,3 +86,4 @@ Job ID : %s" |> sprintf(job)),
 
 # Job completed
 print(paste("Job Completed time :", Sys.time()))
+list.files(jobpath, "\\.log$", ignore.case = TRUE, full.names = TRUE) |> storage$cloudsync(file = _)

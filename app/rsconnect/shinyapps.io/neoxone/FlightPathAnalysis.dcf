@@ -1,0 +1,14 @@
+name: FlightPathAnalysis
+title: FlightPathAnalysis
+username:
+account: neoxone
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9039353
+bundleId: 7821157
+url: https://neoxone.shinyapps.io/FlightPathAnalysis/
+when: 1697659676.42483
+lastSyncTime: 1697659676.42483
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: flight_jobs
